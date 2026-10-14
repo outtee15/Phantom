@@ -106,8 +106,10 @@ function Library:CreateWindow(props)
 	local activeTab
 	local unloaded = false
 	local config = read(props, "configuration", nil)
+	local closeCallback = read(props, "onClose", read(props, "closeCallback", nil))
 	local configFile
 	local configFolder
+	local settingsFile = "uiLibrary_settings.json"
 	local gui
 	local windowFrame
 	local contentFrame
@@ -115,6 +117,49 @@ function Library:CreateWindow(props)
 	local sectionCards = {}
 	local activeSections = {}
 	local defaultSections = {}
+	local currentSidebarWidth = 142
+
+	local function fileFunction(name)
+		local ok, fn = pcall(function()
+			local getter = _G["getgenv"]
+			local environment = type(getter) == "function" and getter() or _G
+			return environment[name] or _G[name]
+		end)
+		return ok and type(fn) == "function" and fn or nil
+	end
+
+	local function loadHideKey()
+		local reader = fileFunction("readfile")
+		local exists = fileFunction("isfile")
+		if not reader then return Enum.KeyCode.RightControl end
+		if exists then
+			local ok, present = pcall(exists, settingsFile)
+			if not ok or not present then return Enum.KeyCode.RightControl end
+		end
+		local ok, settings = pcall(function() return HttpService:JSONDecode(reader(settingsFile)) end)
+		if ok and type(settings) == "table" and type(settings.hideKey) == "string" then
+			local keyOk, key = pcall(function() return Enum.KeyCode[settings.hideKey] end)
+			if keyOk and key then return key end
+		end
+		return Enum.KeyCode.RightControl
+	end
+
+	local function saveHideKey(key)
+		local writer = fileFunction("writefile")
+		if not writer then return false end
+		local ok, encoded = pcall(function()
+			return HttpService:JSONEncode({ hideKey = key.Name })
+		end)
+		if not ok then return false end
+		local saved = pcall(writer, settingsFile, encoded)
+		return saved
+	end
+
+	local hideKey = loadHideKey()
+	saveHideKey(hideKey)
+	local waitingForHideKey = false
+	local settingsPopup
+	local hideKeyButton
 
 	local function connect(signal, callback)
 		local connection = signal:Connect(callback)
@@ -165,60 +210,74 @@ function Library:CreateWindow(props)
 	local sidebar = make("Frame", {
 		Name = "Sidebar",
 		Position = UDim2.fromOffset(0, 52),
-		Size = UDim2.new(0, 60, 1, -52),
+		Size = UDim2.new(0, currentSidebarWidth, 1, -52),
 		BackgroundColor3 = theme.header,
 		BorderSizePixel = 0,
 	}, windowFrame)
 	make("UIListLayout", {
 		Padding = UDim.new(0, 5),
 		SortOrder = Enum.SortOrder.LayoutOrder,
-		HorizontalAlignment = Enum.HorizontalAlignment.Center,
+		HorizontalAlignment = Enum.HorizontalAlignment.Left,
 	}, sidebar)
 	make("UIPadding", {
 		PaddingTop = UDim.new(0, 10),
-		PaddingLeft = UDim.new(0, 8),
-		PaddingRight = UDim.new(0, 8),
+		PaddingLeft = UDim.new(0, 7),
+		PaddingRight = UDim.new(0, 7),
 	}, sidebar)
-	make("Frame", {
-		Position = UDim2.fromOffset(59, 52),
+	local sidebarDivider = make("Frame", {
+		Position = UDim2.fromOffset(currentSidebarWidth - 1, 52),
 		Size = UDim2.new(0, 1, 1, -52),
 		BackgroundColor3 = theme.border,
 		BorderSizePixel = 0,
 	}, windowFrame)
 
 	local logo = make("Frame", {
-		Name = "Ouroboros",
+		Name = "GhostIcon",
 		Position = UDim2.fromOffset(14, 10),
 		Size = UDim2.fromOffset(32, 32),
 		BackgroundTransparency = 1,
 	}, header)
-	local ring = make("Frame", {
-		Position = UDim2.fromOffset(3, 3),
-		Size = UDim2.fromOffset(26, 26),
+	local ghostHead = make("Frame", {
+		Position = UDim2.fromOffset(6, 3),
+		Size = UDim2.fromOffset(20, 24),
 		BackgroundColor3 = theme.header,
 		BorderSizePixel = 0,
 	}, logo)
-	round(ring, 14)
-	stroke(ring, theme.muted, 2)
-	local snakeHead = make("Frame", {
-		Position = UDim2.fromOffset(19, 1),
-		Size = UDim2.fromOffset(10, 7),
-		Rotation = 42,
-		BackgroundColor3 = theme.muted,
-		BorderSizePixel = 0,
-	}, logo)
-	round(snakeHead, 4)
-make("Frame", {
-		Position = UDim2.fromOffset(25, 3),
-		Size = UDim2.fromOffset(2, 2),
+	round(ghostHead, 10)
+	stroke(ghostHead, theme.muted, 2)
+	make("Frame", {
+		Position = UDim2.fromOffset(5, 18),
+		Size = UDim2.fromOffset(22, 9),
 		BackgroundColor3 = theme.header,
 		BorderSizePixel = 0,
-}, logo)
+		ZIndex = 2,
+	}, logo)
+	for _, eyeX in ipairs({ 11, 19 }) do
+		local eye = make("Frame", {
+			Position = UDim2.fromOffset(eyeX, 12),
+			Size = UDim2.fromOffset(2, 4),
+			BackgroundColor3 = theme.muted,
+			BorderSizePixel = 0,
+			ZIndex = 3,
+		}, logo)
+		round(eye, 2)
+	end
+	for index = 1, 4 do
+		local descending = index % 2 == 1
+		make("Frame", {
+			Position = UDim2.fromOffset(6 + (index - 1) * 5, descending and 21 or 23),
+			Size = UDim2.fromOffset(7, 2),
+			Rotation = descending and 35 or -35,
+			BackgroundColor3 = theme.muted,
+			BorderSizePixel = 0,
+			ZIndex = 3,
+		}, logo)
+	end
 
-	make("TextLabel", {
+	local titleLabel = make("TextLabel", {
 		Name = "Title",
 		Position = UDim2.fromOffset(74, 8),
-		Size = UDim2.new(0.42, 0, 0, 20),
+		Size = UDim2.new(0.32, 0, 0, 20),
 		BackgroundTransparency = 1,
 		Font = Enum.Font.GothamMedium,
 		Text = tostring(read(props, "name", "Rayfield Window")),
@@ -227,10 +286,10 @@ make("Frame", {
 		TextXAlignment = Enum.TextXAlignment.Left,
 		TextTruncate = Enum.TextTruncate.AtEnd,
 	}, header)
-	make("TextLabel", {
+	local subtitleLabel = make("TextLabel", {
 		Name = "Subtitle",
 		Position = UDim2.fromOffset(74, 28),
-		Size = UDim2.new(0.42, 0, 0, 15),
+		Size = UDim2.new(0.32, 0, 0, 15),
 		BackgroundTransparency = 1,
 		Font = Enum.Font.Gotham,
 		Text = tostring(read(props, "subtitle", "")),
@@ -256,26 +315,83 @@ make("Frame", {
 		TextXAlignment = Enum.TextXAlignment.Left,
 	}, header)
 	round(search, 4)
-make("UIPadding", {
+	make("UIPadding", {
 		PaddingLeft = UDim.new(0, 12),
 		PaddingRight = UDim.new(0, 8),
-}, search)
+	}, search)
+	local settingsButton = make("TextButton", {
+		Name = "Settings",
+		AnchorPoint = Vector2.new(1, 0.5),
+		Position = UDim2.new(1, -68, 0.5, 0),
+		Size = UDim2.fromOffset(22, 28),
+		BackgroundTransparency = 1,
+		Font = Enum.Font.Gotham,
+		Text = "⚙",
+		TextColor3 = theme.muted,
+		TextSize = 16,
+	}, header)
 	local hideButton = make("TextButton", {
 		Name = "Hide",
 		AnchorPoint = Vector2.new(1, 0.5),
-		Position = UDim2.new(1, -14, 0.5, 0),
-		Size = UDim2.fromOffset(24, 28),
+		Position = UDim2.new(1, -40, 0.5, 0),
+		Size = UDim2.fromOffset(22, 28),
 		BackgroundTransparency = 1,
 		Font = Enum.Font.Gotham,
-		Text = "_",
+		Text = "−",
 		TextColor3 = theme.muted,
 		TextSize = 18,
 	}, header)
+	local closeButton = make("TextButton", {
+		Name = "Close",
+		AnchorPoint = Vector2.new(1, 0.5),
+		Position = UDim2.new(1, -10, 0.5, 0),
+		Size = UDim2.fromOffset(22, 28),
+		BackgroundTransparency = 1,
+		Font = Enum.Font.Gotham,
+		Text = "×",
+		TextColor3 = theme.muted,
+		TextSize = 18,
+	}, header)
+	settingsPopup = make("Frame", {
+		Name = "SettingsPopup",
+		AnchorPoint = Vector2.new(1, 0),
+		Position = UDim2.new(1, -8, 0, 48),
+		Size = UDim2.fromOffset(220, 86),
+		BackgroundColor3 = theme.panel,
+		BorderSizePixel = 0,
+		Visible = false,
+		ZIndex = 70,
+	}, windowFrame)
+	round(settingsPopup, 4)
+	stroke(settingsPopup, theme.border)
+	make("TextLabel", {
+		Position = UDim2.fromOffset(10, 7),
+		Size = UDim2.new(1, -20, 0, 20),
+		BackgroundTransparency = 1,
+		Font = Enum.Font.GothamMedium,
+		Text = "Hide window keybind",
+		TextColor3 = theme.text,
+		TextSize = 11,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		ZIndex = 71,
+	}, settingsPopup)
+	hideKeyButton = make("TextButton", {
+		Position = UDim2.fromOffset(10, 37),
+		Size = UDim2.new(1, -20, 0, 32),
+		BackgroundColor3 = theme.row,
+		BorderSizePixel = 0,
+		Font = Enum.Font.Gotham,
+		Text = hideKey.Name,
+		TextColor3 = theme.text,
+		TextSize = 11,
+		ZIndex = 71,
+	}, settingsPopup)
+	round(hideKeyButton, 3)
 
 	contentFrame = make("Frame", {
 		Name = "Content",
-		Position = UDim2.fromOffset(60, 52),
-		Size = UDim2.new(1, -60, 1, -52),
+		Position = UDim2.fromOffset(currentSidebarWidth, 52),
+		Size = UDim2.new(1, -currentSidebarWidth, 1, -52),
 		BackgroundColor3 = theme.background,
 		BorderSizePixel = 0,
 	}, windowFrame)
@@ -328,7 +444,17 @@ make("UIPadding", {
 		windowFrame.Size = UDim2.fromOffset(newWidth, newHeight)
 		search.Size = UDim2.fromOffset(math.max(92, math.min(195, newWidth * 0.27)), 32)
 		local narrow = size.X < 680
+		currentSidebarWidth = math.clamp(math.floor(newWidth * 0.2), 120, 142)
+		sidebar.Size = UDim2.new(0, currentSidebarWidth, 1, -52)
+		sidebarDivider.Position = UDim2.fromOffset(currentSidebarWidth - 1, 52)
+		contentFrame.Position = UDim2.fromOffset(currentSidebarWidth, 52)
+		contentFrame.Size = UDim2.new(1, -currentSidebarWidth, 1, -52)
+		titleLabel.Size = UDim2.new(newWidth < 500 and 0.18 or 0.32, 0, 0, 20)
+		subtitleLabel.Size = UDim2.new(newWidth < 500 and 0.18 or 0.32, 0, 0, 15)
+		search.Visible = newWidth >= 500
 		for _, tab in ipairs(tabs) do
+			tab._button.Size = UDim2.fromOffset(currentSidebarWidth - 14, 34)
+			tab._nameLabel.Size = UDim2.new(1, -43, 1, 0)
 			local tabLeft, tabRight = tab._columns[1], tab._columns[2]
 			tabLeft.Size = narrow and UDim2.new(1, -16, 1, -12) or UDim2.new(0.5, -12, 1, -12)
 			tabRight.Position = narrow and UDim2.new(0, -10000, 0, 0) or UDim2.new(0.5, 4, 0, 0)
@@ -355,6 +481,7 @@ make("UIPadding", {
 			else
 				item._icon.TextColor3 = selected and theme.text or theme.muted
 			end
+			item._nameLabel.TextColor3 = selected and theme.text or theme.muted
 		end
 	end
 
@@ -447,6 +574,8 @@ make("UIPadding", {
 			SortOrder = Enum.SortOrder.LayoutOrder,
 		}, body)
 		local bodyPadding = make("UIPadding", {
+			PaddingLeft = UDim.new(0, 7),
+			PaddingRight = UDim.new(0, 7),
 			PaddingTop = UDim.new(0, 1),
 			PaddingBottom = UDim.new(0, 7),
 		}, body)
@@ -745,14 +874,21 @@ make("UIPadding", {
 					nextValue = math.clamp(nextValue, minValue, maxValue)
 					handle:Set(nextValue)
 				end
+				local sliderDragging = false
 				connect(track.InputBegan, function(input)
 					if not handle._locked and (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) then
+						sliderDragging = true
 						updateFromInput(input)
 					end
 				end)
 				connect(UserInputService.InputChanged, function(input)
-					if not handle._locked and input.UserInputType == Enum.UserInputType.MouseMovement and UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) then
+					if sliderDragging and not handle._locked and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
 						updateFromInput(input)
+					end
+				end)
+				connect(UserInputService.InputEnded, function(input)
+					if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+						sliderDragging = false
 					end
 				end)
 			end, value, function(nextValue)
@@ -935,8 +1071,8 @@ make("UIPadding", {
 			return addElement(tab, "ColorPicker", props, function(handle, row, options)
 				makeLabel(row, read(options, "name", "Color"), 0.72)
 				local swatch = make("TextButton", {
-					AnchorPoint = Vector2.new(1, 0.5),
-					Position = UDim2.new(1, 0, 0.5, 0),
+					AnchorPoint = Vector2.new(1, 0),
+					Position = UDim2.new(1, 0, 0, 4),
 					Size = UDim2.fromOffset(42, 22),
 					BackgroundColor3 = initial,
 					BorderSizePixel = 0,
@@ -1121,7 +1257,7 @@ make("UIPadding", {
 		tab._columns = makeTabPage(tab)
 		local button = make("TextButton", {
 			Name = "Tab_" .. tabName,
-			Size = UDim2.fromOffset(38, 32),
+			Size = UDim2.fromOffset(currentSidebarWidth - 14, 34),
 			BackgroundColor3 = theme.header,
 			BorderSizePixel = 0,
 			AutoButtonColor = false,
@@ -1130,52 +1266,38 @@ make("UIPadding", {
 		}, sidebar)
 		round(button, 5)
 		local iconValue = read(tabProps, "icon", nil)
-			local iconIsAsset = type(iconValue) == "number" or (type(iconValue) == "string" and (iconValue:find("rbxassetid://", 1, true) == 1 or iconValue:find("rbxthumb://", 1, true) == 1))
-			local icon = make(iconIsAsset and "ImageLabel" or "TextLabel", {
-			Size = UDim2.fromScale(1, 1),
+		local iconIsAsset = type(iconValue) == "number" or (type(iconValue) == "string" and (iconValue:find("rbxassetid://", 1, true) == 1 or iconValue:find("rbxthumb://", 1, true) == 1))
+		local icon = make(iconIsAsset and "ImageLabel" or "TextLabel", {
+			Position = UDim2.fromOffset(8, 7),
+			Size = UDim2.fromOffset(20, 20),
 			BackgroundTransparency = 1,
 		}, button)
-			if iconIsAsset then
-				icon.Image = type(iconValue) == "number" and ("rbxassetid://" .. tostring(iconValue)) or iconValue
-				icon.ImageColor3 = theme.muted
-				icon.ScaleType = Enum.ScaleType.Fit
-			else
-				icon.Font = Enum.Font.GothamMedium
-				icon.Text = iconValue and tostring(iconValue) or "◇"
-				icon.TextColor3 = theme.muted
-				icon.TextSize = 17
-			end
-		local tooltipText = make("TextLabel", {
-			Name = "TabTooltip",
-			Position = UDim2.new(1, 9, 0.5, 0),
-			AnchorPoint = Vector2.new(0, 0.5),
-				AutomaticSize = Enum.AutomaticSize.Y,
-				Size = UDim2.fromOffset(210, 25),
-			BackgroundColor3 = theme.panel,
-			BorderSizePixel = 0,
+		if iconIsAsset then
+			icon.Image = type(iconValue) == "number" and ("rbxassetid://" .. tostring(iconValue)) or iconValue
+			icon.ImageColor3 = theme.muted
+			icon.ScaleType = Enum.ScaleType.Fit
+		else
+			icon.Font = Enum.Font.GothamMedium
+			icon.Text = iconValue and tostring(iconValue) or "◇"
+			icon.TextColor3 = theme.muted
+			icon.TextSize = 16
+		end
+		local nameLabel = make("TextLabel", {
+			Name = "TabName",
+			Position = UDim2.fromOffset(36, 0),
+			Size = UDim2.new(1, -43, 1, 0),
+			BackgroundTransparency = 1,
 			Font = Enum.Font.Gotham,
 			Text = tabName,
-			TextColor3 = theme.text,
+			TextColor3 = theme.muted,
 			TextSize = 11,
 			TextXAlignment = Enum.TextXAlignment.Left,
-			TextWrapped = true,
-			Visible = false,
-			ZIndex = 50,
+			TextTruncate = Enum.TextTruncate.AtEnd,
 		}, button)
-		round(tooltipText, 3)
-		stroke(tooltipText, theme.border)
-		make("UIPadding", {
-			PaddingLeft = UDim.new(0, 9),
-			PaddingRight = UDim.new(0, 9),
-			PaddingTop = UDim.new(0, 5),
-			PaddingBottom = UDim.new(0, 5),
-		}, tooltipText)
-		connect(button.MouseEnter, function() tooltipText.Visible = true end)
-		connect(button.MouseLeave, function() tooltipText.Visible = false end)
 		connect(button.Activated, function() setActive(tab) end)
 		tab._button = button
 		tab._icon = icon
-		tab._tooltip = tooltipText
+		tab._nameLabel = nameLabel
 		local elementApi = createElementApi(tab)
 		for key, value in pairs(elementApi) do tab[key] = value end
 		function tab:CreateSection(sectionProps)
@@ -1191,7 +1313,7 @@ make("UIPadding", {
 		function tab:Select() setActive(self) end
 		function tab:SetName(nextName)
 			self.name = tostring(nextName)
-			self._tooltip.Text = self.name
+			self._nameLabel.Text = self.name
 			self._button.Name = "Tab_" .. self.name
 		end
 		table.insert(tabs, tab)
@@ -1268,6 +1390,25 @@ make("UIPadding", {
 	function window:ToggleHide()
 		if not unloaded then gui.Enabled = not gui.Enabled end
 	end
+	function window:GetHideKey()
+		return hideKey
+	end
+	function window:SetHideKey(key)
+		local nextKey = key
+		if type(nextKey) == "string" then
+			local ok, resolved = pcall(function() return Enum.KeyCode[nextKey] end)
+			if not ok then return false end
+			nextKey = resolved
+		end
+		if typeof(nextKey) ~= "EnumItem" or tostring(nextKey.EnumType) ~= "Enum.KeyCode" then return false end
+		hideKey = nextKey
+		hideKeyButton.Text = hideKey.Name
+		saveHideKey(hideKey)
+		return true
+	end
+	function window:Close()
+		self:Unload()
+	end
 	function window:ToggleMinimise()
 		if not unloaded then contentFrame.Visible = not contentFrame.Visible; sidebar.Visible = contentFrame.Visible end
 	end
@@ -1307,14 +1448,6 @@ make("UIPadding", {
 		return false
 	end
 
-	local function fileFunction(name)
-		local ok, fn = pcall(function()
-			local getter = _G["getgenv"]
-			local environment = type(getter) == "function" and getter() or _G
-			return environment[name] or _G[name]
-		end)
-		return ok and type(fn) == "function" and fn or nil
-	end
 	if config then
 		local fileName = tostring(read(config, "fileName", tostring(read(props, "name", "RayfieldWindow"))))
 		configFolder = read(config, "customFolder", nil)
@@ -1386,6 +1519,7 @@ make("UIPadding", {
 		if unloaded then return end
 		unloaded = true
 		self.unloaded = true
+		invoke(closeCallback, self)
 		for _, connection in ipairs(connections) do connection:Disconnect() end
 		connections = {}
 		if gui then gui:Destroy() end
@@ -1410,7 +1544,29 @@ make("UIPadding", {
 	connect(UserInputService.InputEnded, function(input)
 		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then dragging = false end
 	end)
-	connect(hideButton.Activated, function() window:Hide() end)
+	connect(settingsButton.Activated, function()
+		settingsPopup.Visible = not settingsPopup.Visible
+	end)
+	connect(hideKeyButton.Activated, function()
+		waitingForHideKey = true
+		hideKeyButton.Text = "Press a key..."
+	end)
+	connect(closeButton.Activated, function() window:Close() end)
+	connect(hideButton.Activated, function() window:ToggleHide() end)
+	connect(UserInputService.InputBegan, function(input)
+		if waitingForHideKey then
+			if input.KeyCode.Name == "Unknown" then return end
+			if input.KeyCode.Name == "Escape" then
+				waitingForHideKey = false
+				hideKeyButton.Text = hideKey.Name
+				return
+			end
+			window:SetHideKey(input.KeyCode)
+			waitingForHideKey = false
+			return
+		end
+		if input.KeyCode == hideKey then window:ToggleHide() end
+	end)
 	connect(search:GetPropertyChangedSignal("Text"), function()
 		local query = search.Text:lower()
 		for _, section in ipairs(sectionCards) do
