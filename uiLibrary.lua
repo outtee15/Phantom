@@ -1,13 +1,10 @@
 local Library = {}
 
-local Players = game:GetService("Players")
 local GuiService = game:GetService("GuiService")
 local TextService = game:GetService("TextService")
 local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
 local HttpService = game:GetService("HttpService")
-local LocalPlayer = Players.LocalPlayer
-
 local Themes = {
 	default = {
 		background = Color3.fromRGB(20, 20, 20),
@@ -82,10 +79,11 @@ local function normalizedTheme(theme)
 	return result
 end
 
-local function getGuiParent()
-	local playerGui = LocalPlayer and LocalPlayer:FindFirstChildOfClass("PlayerGui")
-	if playerGui then
-		return playerGui
+
+local function getGuiParent(getUi)
+	if type(getUi) == "function" then
+		local ok, parent = pcall(getUi)
+		if ok and parent then return parent end
 	end
 	return game:GetService("CoreGui")
 end
@@ -115,12 +113,36 @@ function Library:CreateWindow(props)
 	local currentSidebarWidth = 142
 
 	local function fileFunction(name)
-		local ok, fn = pcall(function()
-			local getter = _G["getgenv"]
-			local environment = type(getter) == "function" and getter() or _G
-			return environment[name] or _G[name]
-		end)
-		return ok and type(fn) == "function" and fn or nil
+		local environments = {}
+		local seen = {}
+		local function addEnvironment(environment)
+			if type(environment) == "table" and not seen[environment] then
+				seen[environment] = true
+				table.insert(environments, environment)
+			end
+		end
+		addEnvironment(_G)
+		local activeOk, activeEnvironment = pcall(function() return getfenv(0) end)
+		if activeOk then addEnvironment(activeEnvironment) end
+		local index = 1
+		while index <= #environments do
+			local getter = environments[index]["getgenv"]
+			if type(getter) == "function" then
+				local environmentOk, globalEnvironment = pcall(getter)
+				if environmentOk then addEnvironment(globalEnvironment) end
+			end
+			index += 1
+		end
+		for _, environment in ipairs(environments) do
+			local fn = environment[name]
+			if type(fn) == "function" then return fn end
+		end
+		return nil
+	end
+	local isExecutor = fileFunction("getgenv") or fileFunction("gethui")
+		or fileFunction("identifyexecutor") or fileFunction("getexecutorname")
+	if not isExecutor then
+		error("[uiLibrary] Executor runtime required.", 2)
 	end
 
 	local function loadHideKey()
@@ -178,14 +200,14 @@ function Library:CreateWindow(props)
 		ResetOnSpawn = false,
 		IgnoreGuiInset = true,
 		ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
-	}, getGuiParent())
+	}, getGuiParent(fileFunction("gethui")))
 	notificationGui = make("ScreenGui", {
 		Name = "uiLibraryNotifications",
 		ResetOnSpawn = false,
 		IgnoreGuiInset = true,
 		ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
 		DisplayOrder = gui.DisplayOrder + 1,
-	}, getGuiParent())
+	}, getGuiParent(fileFunction("gethui")))
 
 	local viewport = viewportSize()
 	local width = math.max(320, math.min(860, viewport.X - 24))
@@ -1537,7 +1559,17 @@ function Library:CreateWindow(props)
 		if not writer then return false end
 		local folder = fileFunction("makefolder")
 		local isFolder = fileFunction("isfolder")
-		if configFolder and folder and (not isFolder or not isFolder(configFolder)) then pcall(folder, configFolder) end
+		if configFolder and folder then
+			local folderExists = false
+			if isFolder then
+				local folderOk, exists = pcall(isFolder, configFolder)
+				folderExists = folderOk and exists
+			end
+			if not folderExists then
+				local folderCreated = pcall(folder, configFolder)
+				if not folderCreated then return false end
+			end
+		end
 		local ok, encoded = pcall(function() return HttpService:JSONEncode(serialize(flags)) end)
 		if not ok then return false end
 		local saved = pcall(writer, configFile, encoded)
@@ -1547,8 +1579,14 @@ function Library:CreateWindow(props)
 		if not config or not configFile then return false end
 		local exists = fileFunction("isfile")
 		local reader = fileFunction("readfile")
-		if not reader or (exists and not exists(configFile)) then return false end
-		local ok, decoded = pcall(function() return HttpService:JSONDecode(reader(configFile)) end)
+		if not reader then return false end
+		if exists then
+			local existsOk, fileExists = pcall(exists, configFile)
+			if not existsOk or not fileExists then return false end
+		end
+		local readOk, contents = pcall(reader, configFile)
+		if not readOk then return false end
+		local ok, decoded = pcall(function() return HttpService:JSONDecode(contents) end)
 		if not ok or type(decoded) ~= "table" then return false end
 		for flag, value in pairs(decoded) do self:Set(flag, deserialize(value), false) end
 		return true
@@ -1571,7 +1609,12 @@ function Library:CreateWindow(props)
 		unloaded = true
 		self.unloaded = true
 		invoke(closeCallback, self)
-		for _, connection in ipairs(connections) do connection:Disconnect() end
+		for _, connection in ipairs(connections) do
+			local disconnect = connection and connection.Disconnect
+			if type(disconnect) == "function" then
+				pcall(disconnect, connection)
+			end
+		end
 		connections = {}
 		if gui then gui:Destroy() end
 		if notificationGui then notificationGui:Destroy() end
