@@ -63,14 +63,14 @@ local function stroke(parent, color, thickness)
 	}, parent)
 end
 
-local function invoke(callback, ...)
-	if type(callback) == "function" then
-		local ok, err = pcall(callback, ...)
-		if not ok then
-			warn("[uiLibrary] " .. tostring(err))
-		end
-	end
-end
+		make("Frame", {
+			Name = "LeftBorder",
+			Position = UDim2.fromOffset(0, 0),
+			Size = UDim2.new(0, 1, 1, 0),
+			BackgroundColor3 = theme.border,
+			BorderSizePixel = 0,
+			ZIndex = 2,
+		}, card)
 
 local function normalizedTheme(theme)
 	local result = {}
@@ -391,8 +391,7 @@ function Library:CreateWindow(props)
 		local repositoryLink = make("TextButton", {
 			BackgroundTransparency = 1,
 			Font = Enum.Font.Gotham,
-			RichText = true,
-			Text = "<u>" .. repositoryUrl .. "</u>",
+			Text = repositoryUrl,
 			TextColor3 = Color3.fromRGB(91, 166, 235),
 			TextSize = 9,
 			TextXAlignment = Enum.TextXAlignment.Left,
@@ -921,7 +920,7 @@ function Library:CreateWindow(props)
 					local nextValue = minValue + (maxValue - minValue) * fraction
 					nextValue = math.floor((nextValue / increment) + 0.5) * increment
 					nextValue = math.clamp(nextValue, minValue, maxValue)
-					handle:Set(nextValue, true)
+					handle:Set(nextValue)
 				end
 				local sliderDragging = false
 				connect(track.InputBegan, function(input)
@@ -938,7 +937,6 @@ function Library:CreateWindow(props)
 				connect(UserInputService.InputEnded, function(input)
 					if sliderDragging and (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) then
 						sliderDragging = false
-						if not handle._locked then handle:Set(handle.value) end
 					end
 				end)
 			end, value, function(nextValue)
@@ -1211,7 +1209,7 @@ function Library:CreateWindow(props)
 					saturation = math.clamp((input.Position.X - bounds.X) / math.max(dimensions.X, 1), 0, 1)
 					brightness = 1 - math.clamp((input.Position.Y - bounds.Y) / math.max(dimensions.Y, 1), 0, 1)
 				end
-				handle:Set(Color3.fromHSV(hue, saturation, brightness), true)
+				handle:Set(Color3.fromHSV(hue, saturation, brightness))
 			end
 			handle._refresh = refresh
 			refresh(handle.value)
@@ -1239,7 +1237,6 @@ function Library:CreateWindow(props)
 				if dragTarget and (input.UserInputType == Enum.UserInputType.MouseButton1 or input == activeTouch) then
 					dragTarget = nil
 					activeTouch = nil
-					if not handle._locked then handle:Set(handle.value) end
 				end
 			end)
 			end, initial, function(nextColor)
