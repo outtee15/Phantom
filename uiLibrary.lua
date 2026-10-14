@@ -1,6 +1,8 @@
 local Library = {}
 
 local Players = game:GetService("Players")
+local GuiService = game:GetService("GuiService")
+local TextService = game:GetService("TextService")
 local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
 local HttpService = game:GetService("HttpService")
@@ -361,19 +363,85 @@ function Library:CreateWindow(props)
 		BackgroundColor3 = theme.background,
 		BorderSizePixel = 0,
 	}, windowFrame)
-	make("TextLabel", {
+		local footer = make("Frame", {
 		Name = "Footer",
 		AnchorPoint = Vector2.new(0.5, 1),
 		Position = UDim2.new(0.5, 0, 1, 0),
 		Size = UDim2.new(1, 0, 0, 18),
 		BackgroundColor3 = theme.header,
 		BorderSizePixel = 0,
-		Font = Enum.Font.Gotham,
-		Text = "Phantom UI by outtee",
-		TextColor3 = theme.muted,
-		TextSize = 10,
-		TextXAlignment = Enum.TextXAlignment.Center,
 	}, windowFrame)
+		local footerAttribution = "Phantom UI Library by outtee | "
+		local repositoryUrl = "https://github.com/outtee15/Phantom"
+		local footerGroup = make("Frame", {
+			Name = "FooterContent",
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			Position = UDim2.fromScale(0.5, 0.5),
+			Size = UDim2.fromOffset(0, 16),
+			BackgroundTransparency = 1,
+		}, footer)
+		local attributionLabel = make("TextLabel", {
+			BackgroundTransparency = 1,
+			Font = Enum.Font.Gotham,
+			Text = footerAttribution,
+			TextColor3 = theme.muted,
+			TextSize = 9,
+			TextXAlignment = Enum.TextXAlignment.Left,
+		}, footerGroup)
+		local repositoryLink = make("TextButton", {
+			BackgroundTransparency = 1,
+			Font = Enum.Font.Gotham,
+			RichText = true,
+			Text = "<u>" .. repositoryUrl .. "</u>",
+			TextColor3 = Color3.fromRGB(91, 166, 235),
+			TextSize = 9,
+			TextXAlignment = Enum.TextXAlignment.Left,
+			AutoButtonColor = false,
+		}, footerGroup)
+		local externalLinkIcon = make("TextButton", {
+			Name = "ExternalLinkIcon",
+			BackgroundTransparency = 1,
+			Text = "",
+			AutoButtonColor = false,
+		}, footerGroup)
+		local iconColor = Color3.fromRGB(91, 166, 235)
+		for _, line in ipairs({
+			{ x = 1, y = 4, w = 1, h = 6, r = 0 },
+			{ x = 1, y = 9, w = 6, h = 1, r = 0 },
+			{ x = 6, y = 6, w = 1, h = 3, r = 0 },
+			{ x = 3, y = 6, w = 7, h = 1, r = -45 },
+			{ x = 7, y = 2, w = 1, h = 4, r = 0 },
+			{ x = 5, y = 2, w = 4, h = 1, r = 0 },
+		}) do
+			make("Frame", {
+				Position = UDim2.fromOffset(line.x, line.y),
+				Size = UDim2.fromOffset(line.w, line.h),
+				Rotation = line.r,
+				BackgroundColor3 = iconColor,
+				BorderSizePixel = 0,
+			}, externalLinkIcon)
+		end
+		local function sizeFooter(availableWidth)
+			local textSize = availableWidth < 390 and 8 or 9
+			local bounds = Vector2.new(availableWidth, 16)
+			local attributionWidth = TextService:GetTextSize(footerAttribution, textSize, Enum.Font.Gotham, bounds).X
+			local linkWidth = TextService:GetTextSize(repositoryUrl, textSize, Enum.Font.Gotham, bounds).X
+			attributionLabel.TextSize = textSize
+			attributionLabel.Position = UDim2.fromOffset(0, 0)
+			attributionLabel.Size = UDim2.fromOffset(attributionWidth, 16)
+			repositoryLink.TextSize = textSize
+			repositoryLink.Position = UDim2.fromOffset(attributionWidth, 0)
+			repositoryLink.Size = UDim2.fromOffset(linkWidth, 16)
+			externalLinkIcon.Position = UDim2.fromOffset(attributionWidth + linkWidth + 4, 3)
+			externalLinkIcon.Size = UDim2.fromOffset(11, 11)
+			footerGroup.Size = UDim2.fromOffset(attributionWidth + linkWidth + 19, 16)
+		end
+		sizeFooter(width)
+		local function openRepository()
+			pcall(function() GuiService:OpenBrowserWindow(repositoryUrl) end)
+		end
+		connect(repositoryLink.Activated, openRepository)
+		connect(externalLinkIcon.Activated, openRepository)
 
 	local function makeColumn(parent, position, widthScale)
 		local column = make("ScrollingFrame", {
@@ -432,6 +500,7 @@ function Library:CreateWindow(props)
 		titleLabel.Size = UDim2.new(newWidth < 500 and 0.18 or 0.32, 0, 0, 20)
 		subtitleLabel.Size = UDim2.new(newWidth < 500 and 0.18 or 0.32, 0, 0, 15)
 		search.Visible = newWidth >= 500
+		sizeFooter(newWidth)
 		for _, tab in ipairs(tabs) do
 			tab._button.Size = UDim2.fromOffset(currentSidebarWidth - 14, 34)
 			tab._nameLabel.Size = UDim2.new(1, -43, 1, 0)
