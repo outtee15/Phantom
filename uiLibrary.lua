@@ -550,19 +550,10 @@ function Library:CreateWindow(props)
 			AutomaticSize = Enum.AutomaticSize.Y,
 			BackgroundColor3 = theme.panel,
 			BorderSizePixel = 0,
-			ClipsDescendants = true,
 			LayoutOrder = index,
 		}, column)
 		round(card, 4)
 		stroke(card, theme.border)
-		make("Frame", {
-			Name = "LeftBorder",
-			Position = UDim2.fromOffset(0, 0),
-			Size = UDim2.new(0, 1, 1, 0),
-			BackgroundColor3 = theme.border,
-			BorderSizePixel = 0,
-			ZIndex = 2,
-		}, card)
 		make("UIListLayout", {
 			SortOrder = Enum.SortOrder.LayoutOrder,
 			Padding = UDim.new(0, 0),
