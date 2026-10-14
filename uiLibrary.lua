@@ -63,15 +63,6 @@ local function stroke(parent, color, thickness)
 	}, parent)
 end
 
-		make("Frame", {
-			Name = "LeftBorder",
-			Position = UDim2.fromOffset(0, 0),
-			Size = UDim2.new(0, 1, 1, 0),
-			BackgroundColor3 = theme.border,
-			BorderSizePixel = 0,
-			ZIndex = 2,
-		}, card)
-
 local function normalizedTheme(theme)
 	local result = {}
 	for key, value in pairs(Themes.default) do
@@ -564,6 +555,14 @@ function Library:CreateWindow(props)
 		}, column)
 		round(card, 4)
 		stroke(card, theme.border)
+		make("Frame", {
+			Name = "LeftBorder",
+			Position = UDim2.fromOffset(0, 0),
+			Size = UDim2.new(0, 1, 1, 0),
+			BackgroundColor3 = theme.border,
+			BorderSizePixel = 0,
+			ZIndex = 2,
+		}, card)
 		make("UIListLayout", {
 			SortOrder = Enum.SortOrder.LayoutOrder,
 			Padding = UDim.new(0, 0),
