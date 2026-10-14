@@ -112,6 +112,7 @@ function Library:CreateWindow(props)
 	local configFolder
 	local settingsFile = "uiLibrary_settings.json"
 	local gui
+	local notificationGui
 	local windowFrame
 	local contentFrame
 	local tabButtons = {}
@@ -185,6 +186,13 @@ function Library:CreateWindow(props)
 		IgnoreGuiInset = true,
 		ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
 	}, getGuiParent())
+	notificationGui = make("ScreenGui", {
+		Name = "uiLibraryNotifications",
+		ResetOnSpawn = false,
+		IgnoreGuiInset = true,
+		ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
+		DisplayOrder = gui.DisplayOrder + 1,
+	}, getGuiParent())
 
 	local viewport = viewportSize()
 	local width = math.max(320, math.min(860, viewport.X - 24))
@@ -211,7 +219,7 @@ function Library:CreateWindow(props)
 	local sidebar = make("Frame", {
 		Name = "Sidebar",
 		Position = UDim2.fromOffset(0, 52),
-		Size = UDim2.new(0, currentSidebarWidth, 1, -52),
+		Size = UDim2.new(0, currentSidebarWidth, 1, -70),
 		BackgroundColor3 = theme.header,
 		BorderSizePixel = 0,
 	}, windowFrame)
@@ -227,55 +235,14 @@ function Library:CreateWindow(props)
 	}, sidebar)
 	local sidebarDivider = make("Frame", {
 		Position = UDim2.fromOffset(currentSidebarWidth - 1, 52),
-		Size = UDim2.new(0, 1, 1, -52),
+		Size = UDim2.new(0, 1, 1, -70),
 		BackgroundColor3 = theme.border,
 		BorderSizePixel = 0,
 	}, windowFrame)
 
-	local logo = make("Frame", {
-		Name = "GhostIcon",
-		Position = UDim2.fromOffset(14, 10),
-		Size = UDim2.fromOffset(32, 32),
-		BackgroundTransparency = 1,
-	}, header)
-	local ghostPoints = {
-		{ 12, 2 }, { 9.3, 2.7 }, { 7.1, 4.5 }, { 5.2, 7.2 }, { 4, 10 },
-		{ 4, 18.5 }, { 5.2, 19.7 }, { 8, 17.8 }, { 10.3, 20.2 },
-		{ 12, 18.5 }, { 14, 20.4 }, { 16.3, 17.8 }, { 19, 19.7 },
-		{ 20, 18.5 }, { 20, 10 }, { 18.8, 7.2 }, { 16.9, 4.5 }, { 14.7, 2.7 },
-	}
-	local iconScale = 1.2
-	local iconOffset = (32 - 24 * iconScale) / 2
-	for index, point in ipairs(ghostPoints) do
-		local nextPoint = ghostPoints[index % #ghostPoints + 1]
-		local deltaX = nextPoint[1] - point[1]
-		local deltaY = nextPoint[2] - point[2]
-		local segment = make("Frame", {
-			AnchorPoint = Vector2.new(0.5, 0.5),
-			Position = UDim2.fromOffset(
-				iconOffset + ((point[1] + nextPoint[1]) / 2) * iconScale,
-				3 + ((point[2] + nextPoint[2]) / 2) * iconScale
-			),
-			Size = UDim2.fromOffset(math.sqrt(deltaX * deltaX + deltaY * deltaY) * iconScale, 2),
-			Rotation = math.deg(math.atan2(deltaY, deltaX)),
-			BackgroundColor3 = theme.muted,
-			BorderSizePixel = 0,
-		}, logo)
-		round(segment, 1)
-	end
-	for _, eyeX in ipairs({ 9.5, 14.5 }) do
-		local eye = make("Frame", {
-			Position = UDim2.fromOffset(iconOffset + eyeX * iconScale, 3 + 9 * iconScale),
-			Size = UDim2.fromOffset(2, 3),
-			BackgroundColor3 = theme.muted,
-			BorderSizePixel = 0,
-		}, logo)
-		round(eye, 1)
-	end
-
 	local titleLabel = make("TextLabel", {
 		Name = "Title",
-		Position = UDim2.fromOffset(74, 8),
+		Position = UDim2.fromOffset(14, 8),
 		Size = UDim2.new(0.32, 0, 0, 20),
 		BackgroundTransparency = 1,
 		Font = Enum.Font.GothamMedium,
@@ -287,7 +254,7 @@ function Library:CreateWindow(props)
 	}, header)
 	local subtitleLabel = make("TextLabel", {
 		Name = "Subtitle",
-		Position = UDim2.fromOffset(74, 28),
+		Position = UDim2.fromOffset(14, 28),
 		Size = UDim2.new(0.32, 0, 0, 15),
 		BackgroundTransparency = 1,
 		Font = Enum.Font.Gotham,
@@ -390,9 +357,22 @@ function Library:CreateWindow(props)
 	contentFrame = make("Frame", {
 		Name = "Content",
 		Position = UDim2.fromOffset(currentSidebarWidth, 52),
-		Size = UDim2.new(1, -currentSidebarWidth, 1, -52),
+		Size = UDim2.new(1, -currentSidebarWidth, 1, -70),
 		BackgroundColor3 = theme.background,
 		BorderSizePixel = 0,
+	}, windowFrame)
+	make("TextLabel", {
+		Name = "Footer",
+		AnchorPoint = Vector2.new(0.5, 1),
+		Position = UDim2.new(0.5, 0, 1, 0),
+		Size = UDim2.new(1, 0, 0, 18),
+		BackgroundColor3 = theme.header,
+		BorderSizePixel = 0,
+		Font = Enum.Font.Gotham,
+		Text = "Phantom UI by outtee",
+		TextColor3 = theme.muted,
+		TextSize = 10,
+		TextXAlignment = Enum.TextXAlignment.Center,
 	}, windowFrame)
 
 	local function makeColumn(parent, position, widthScale)
@@ -444,10 +424,11 @@ function Library:CreateWindow(props)
 		search.Size = UDim2.fromOffset(math.max(92, math.min(195, newWidth * 0.27)), 32)
 		local narrow = size.X < 680
 		currentSidebarWidth = math.clamp(math.floor(newWidth * 0.2), 120, 142)
-		sidebar.Size = UDim2.new(0, currentSidebarWidth, 1, -52)
+		sidebar.Size = UDim2.new(0, currentSidebarWidth, 1, -70)
 		sidebarDivider.Position = UDim2.fromOffset(currentSidebarWidth - 1, 52)
+		sidebarDivider.Size = UDim2.new(0, 1, 1, -70)
 		contentFrame.Position = UDim2.fromOffset(currentSidebarWidth, 52)
-		contentFrame.Size = UDim2.new(1, -currentSidebarWidth, 1, -52)
+		contentFrame.Size = UDim2.new(1, -currentSidebarWidth, 1, -70)
 		titleLabel.Size = UDim2.new(newWidth < 500 and 0.18 or 0.32, 0, 0, 20)
 		subtitleLabel.Size = UDim2.new(newWidth < 500 and 0.18 or 0.32, 0, 0, 15)
 		search.Visible = newWidth >= 500
@@ -557,7 +538,7 @@ function Library:CreateWindow(props)
 			Size = UDim2.fromOffset(16, 16),
 			BackgroundTransparency = 1,
 			Font = Enum.Font.Gotham,
-			Text = "⌄",
+			Text = "v",
 			TextColor3 = theme.muted,
 			TextSize = 18,
 		}, heading)
@@ -600,7 +581,7 @@ function Library:CreateWindow(props)
 		connect(heading.Activated, function()
 			section._collapsed = not section._collapsed
 			body.Visible = not section._collapsed
-			chevron.Text = section._collapsed and "›" or "⌄"
+			chevron.Text = section._collapsed and ">" or "v"
 			card.AutomaticSize = section._collapsed and Enum.AutomaticSize.None or Enum.AutomaticSize.Y
 			card.Size = UDim2.new(1, -2, 0, section._collapsed and 36 or 34)
 		end)
@@ -651,7 +632,7 @@ function Library:CreateWindow(props)
 			if not silent then
 				invoke(self._callback, nextValue)
 			end
-			if config and read(config, "autoSave", false) then
+			if not silent and config and read(config, "autoSave", false) then
 				window:Save()
 			end
 		end
@@ -871,7 +852,7 @@ function Library:CreateWindow(props)
 					local nextValue = minValue + (maxValue - minValue) * fraction
 					nextValue = math.floor((nextValue / increment) + 0.5) * increment
 					nextValue = math.clamp(nextValue, minValue, maxValue)
-					handle:Set(nextValue)
+					handle:Set(nextValue, true)
 				end
 				local sliderDragging = false
 				connect(track.InputBegan, function(input)
@@ -886,8 +867,9 @@ function Library:CreateWindow(props)
 					end
 				end)
 				connect(UserInputService.InputEnded, function(input)
-					if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+					if sliderDragging and (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) then
 						sliderDragging = false
+						if not handle._locked then handle:Set(handle.value) end
 					end
 				end)
 			end, value, function(nextValue)
@@ -1144,6 +1126,7 @@ function Library:CreateWindow(props)
 			}, hueBar)
 			local hue, saturation, brightness = initialHue, initialSaturation, initialBrightness
 			local dragTarget
+			local activeTouch
 			local function refresh(nextColor)
 				if typeof(nextColor) ~= "Color3" then return end
 				swatch.BackgroundColor3 = nextColor
@@ -1159,7 +1142,7 @@ function Library:CreateWindow(props)
 					saturation = math.clamp((input.Position.X - bounds.X) / math.max(dimensions.X, 1), 0, 1)
 					brightness = 1 - math.clamp((input.Position.Y - bounds.Y) / math.max(dimensions.Y, 1), 0, 1)
 				end
-				handle:Set(Color3.fromHSV(hue, saturation, brightness))
+				handle:Set(Color3.fromHSV(hue, saturation, brightness), true)
 			end
 			handle._refresh = refresh
 			refresh(handle.value)
@@ -1173,17 +1156,22 @@ function Library:CreateWindow(props)
 					if handle._locked then return end
 					if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
 						dragTarget = control
+						activeTouch = input.UserInputType == Enum.UserInputType.Touch and input or nil
 						updatePicker(input, control)
 					end
 				end)
 			end
 			connect(UserInputService.InputChanged, function(input)
-				if dragTarget and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+				if dragTarget and (input.UserInputType == Enum.UserInputType.MouseMovement or input == activeTouch) then
 					updatePicker(input, dragTarget)
 				end
 			end)
 			connect(UserInputService.InputEnded, function(input)
-				if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then dragTarget = nil end
+				if dragTarget and (input.UserInputType == Enum.UserInputType.MouseButton1 or input == activeTouch) then
+					dragTarget = nil
+					activeTouch = nil
+					if not handle._locked then handle:Set(handle.value) end
+				end
 			end)
 			end, initial, function(nextColor)
 				return typeof(nextColor) == "Color3" and nextColor or initial
@@ -1347,7 +1335,7 @@ function Library:CreateWindow(props)
 			BackgroundColor3 = theme.panel,
 			BorderSizePixel = 0,
 			ZIndex = 100,
-		}, gui)
+		}, notificationGui)
 		table.insert(notificationCards, toast)
 		round(toast, 4)
 		stroke(toast, theme.border)
@@ -1430,11 +1418,13 @@ function Library:CreateWindow(props)
 		local colorKeys = { "background", "panel", "row", "header", "text", "muted", "accent", "border", "input" }
 		local replacements = {}
 		for _, key in ipairs(colorKeys) do replacements[previousTheme[key]] = theme[key] end
-		for _, descendant in ipairs(gui:GetDescendants()) do
-			for _, property in ipairs({ "BackgroundColor3", "TextColor3", "ImageColor3", "Color", "ScrollBarImageColor3" }) do
-				local ok, currentColor = pcall(function() return descendant[property] end)
-				if ok and replacements[currentColor] then
-					pcall(function() descendant[property] = replacements[currentColor] end)
+		for _, targetGui in ipairs({ gui, notificationGui }) do
+			for _, descendant in ipairs(targetGui:GetDescendants()) do
+				for _, property in ipairs({ "BackgroundColor3", "TextColor3", "ImageColor3", "Color", "ScrollBarImageColor3" }) do
+					local ok, currentColor = pcall(function() return descendant[property] end)
+					if ok and replacements[currentColor] then
+						pcall(function() descendant[property] = replacements[currentColor] end)
+					end
 				end
 			end
 		end
@@ -1528,6 +1518,7 @@ function Library:CreateWindow(props)
 		for _, connection in ipairs(connections) do connection:Disconnect() end
 		connections = {}
 		if gui then gui:Destroy() end
+		if notificationGui then notificationGui:Destroy() end
 	end
 
 	local dragging = false
@@ -1557,7 +1548,14 @@ function Library:CreateWindow(props)
 		hideKeyButton.Text = "Press a key..."
 	end)
 	connect(closeButton.Activated, function() window:Close() end)
-	connect(hideButton.Activated, function() window:ToggleHide() end)
+	connect(hideButton.Activated, function()
+		window:Hide()
+		window:Notify({
+			title = "Phantom UI",
+			content = "UI hidden. Press " .. hideKey.Name .. " to unhide it.",
+			duration = 5,
+		})
+	end)
 	connect(UserInputService.InputBegan, function(input)
 		if waitingForHideKey then
 			if input.KeyCode.Name == "Unknown" then return end
