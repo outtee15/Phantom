@@ -105,6 +105,7 @@ function Library:CreateWindow(props)
 	local flags = {}
 	local activeTab
 	local unloaded = false
+	local notificationCards = {}
 	local config = read(props, "configuration", nil)
 	local closeCallback = read(props, "onClose", read(props, "closeCallback", nil))
 	local configFile
@@ -237,41 +238,39 @@ function Library:CreateWindow(props)
 		Size = UDim2.fromOffset(32, 32),
 		BackgroundTransparency = 1,
 	}, header)
-	local ghostHead = make("Frame", {
-		Position = UDim2.fromOffset(6, 3),
-		Size = UDim2.fromOffset(20, 24),
-		BackgroundColor3 = theme.header,
-		BorderSizePixel = 0,
-	}, logo)
-	round(ghostHead, 10)
-	stroke(ghostHead, theme.muted, 2)
-	make("Frame", {
-		Position = UDim2.fromOffset(5, 18),
-		Size = UDim2.fromOffset(22, 9),
-		BackgroundColor3 = theme.header,
-		BorderSizePixel = 0,
-		ZIndex = 2,
-	}, logo)
-	for _, eyeX in ipairs({ 11, 19 }) do
-		local eye = make("Frame", {
-			Position = UDim2.fromOffset(eyeX, 12),
-			Size = UDim2.fromOffset(2, 4),
+	local ghostPoints = {
+		{ 12, 2 }, { 9.3, 2.7 }, { 7.1, 4.5 }, { 5.2, 7.2 }, { 4, 10 },
+		{ 4, 18.5 }, { 5.2, 19.7 }, { 8, 17.8 }, { 10.3, 20.2 },
+		{ 12, 18.5 }, { 14, 20.4 }, { 16.3, 17.8 }, { 19, 19.7 },
+		{ 20, 18.5 }, { 20, 10 }, { 18.8, 7.2 }, { 16.9, 4.5 }, { 14.7, 2.7 },
+	}
+	local iconScale = 1.2
+	local iconOffset = (32 - 24 * iconScale) / 2
+	for index, point in ipairs(ghostPoints) do
+		local nextPoint = ghostPoints[index % #ghostPoints + 1]
+		local deltaX = nextPoint[1] - point[1]
+		local deltaY = nextPoint[2] - point[2]
+		local segment = make("Frame", {
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			Position = UDim2.fromOffset(
+				iconOffset + ((point[1] + nextPoint[1]) / 2) * iconScale,
+				3 + ((point[2] + nextPoint[2]) / 2) * iconScale
+			),
+			Size = UDim2.fromOffset(math.sqrt(deltaX * deltaX + deltaY * deltaY) * iconScale, 2),
+			Rotation = math.deg(math.atan2(deltaY, deltaX)),
 			BackgroundColor3 = theme.muted,
 			BorderSizePixel = 0,
-			ZIndex = 3,
 		}, logo)
-		round(eye, 2)
+		round(segment, 1)
 	end
-	for index = 1, 4 do
-		local descending = index % 2 == 1
-		make("Frame", {
-			Position = UDim2.fromOffset(6 + (index - 1) * 5, descending and 21 or 23),
-			Size = UDim2.fromOffset(7, 2),
-			Rotation = descending and 35 or -35,
+	for _, eyeX in ipairs({ 9.5, 14.5 }) do
+		local eye = make("Frame", {
+			Position = UDim2.fromOffset(iconOffset + eyeX * iconScale, 3 + 9 * iconScale),
+			Size = UDim2.fromOffset(2, 3),
 			BackgroundColor3 = theme.muted,
 			BorderSizePixel = 0,
-			ZIndex = 3,
 		}, logo)
+		round(eye, 1)
 	end
 
 	local titleLabel = make("TextLabel", {
@@ -1343,12 +1342,13 @@ function Library:CreateWindow(props)
 		notification = notification or {}
 		local toast = make("Frame", {
 			AnchorPoint = Vector2.new(1, 1),
-			Position = UDim2.new(1, -18, 1, -18),
+			Position = UDim2.new(1, -18, 1, -18 - (#notificationCards * 84)),
 			Size = UDim2.fromOffset(260, 76),
 			BackgroundColor3 = theme.panel,
 			BorderSizePixel = 0,
 			ZIndex = 100,
 		}, gui)
+		table.insert(notificationCards, toast)
 		round(toast, 4)
 		stroke(toast, theme.border)
 		make("TextLabel", {
@@ -1375,7 +1375,12 @@ function Library:CreateWindow(props)
 			ZIndex = 101,
 		}, toast)
 		task.delay(tonumber(read(notification, "duration", 4)) or 4, function()
+			local index = table.find(notificationCards, toast)
+			if index then table.remove(notificationCards, index) end
 			if toast.Parent then toast:Destroy() end
+			for cardIndex, card in ipairs(notificationCards) do
+				card.Position = UDim2.new(1, -18, 1, -18 - ((#notificationCards - cardIndex) * 84))
+			end
 		end)
 		return toast
 	end
@@ -1400,7 +1405,7 @@ function Library:CreateWindow(props)
 			if not ok then return false end
 			nextKey = resolved
 		end
-		if typeof(nextKey) ~= "EnumItem" or tostring(nextKey.EnumType) ~= "Enum.KeyCode" then return false end
+		if typeof(nextKey) ~= "EnumItem" or nextKey.EnumType ~= Enum.KeyCode then return false end
 		hideKey = nextKey
 		hideKeyButton.Text = hideKey.Name
 		saveHideKey(hideKey)
@@ -1563,6 +1568,7 @@ function Library:CreateWindow(props)
 			end
 			window:SetHideKey(input.KeyCode)
 			waitingForHideKey = false
+			hideKeyButton.Text = hideKey.Name
 			return
 		end
 		if input.KeyCode == hideKey then window:ToggleHide() end
