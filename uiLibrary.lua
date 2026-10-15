@@ -1701,7 +1701,18 @@ function Library:CreateWindow(props)
 	connect(UserInputService.InputChanged, function(input)
 		if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
 			local delta = input.Position - dragStart
-			windowFrame.Position = UDim2.new(startPosition.X.Scale, startPosition.X.Offset + delta.X, startPosition.Y.Scale, startPosition.Y.Offset + delta.Y)
+			local viewport = viewportSize()
+			local windowSize = windowFrame.AbsoluteSize
+			local centerX = startPosition.X.Scale * viewport.X + startPosition.X.Offset + delta.X
+			local centerY = startPosition.Y.Scale * viewport.Y + startPosition.Y.Offset + delta.Y
+			centerX = math.clamp(centerX, math.min(windowSize.X / 2, viewport.X / 2), math.max(viewport.X - windowSize.X / 2, viewport.X / 2))
+			centerY = math.clamp(centerY, math.min(windowSize.Y / 2, viewport.Y / 2), math.max(viewport.Y - windowSize.Y / 2, viewport.Y / 2))
+			windowFrame.Position = UDim2.new(
+				startPosition.X.Scale,
+				centerX - startPosition.X.Scale * viewport.X,
+				startPosition.Y.Scale,
+				centerY - startPosition.Y.Scale * viewport.Y
+			)
 		end
 	end)
 	connect(UserInputService.InputEnded, function(input)
