@@ -39,6 +39,12 @@ local function read(props, key, fallback)
 	return value
 end
 
+local function invoke(callback, ...)
+	if type(callback) == "function" then
+		return callback(...)
+	end
+end
+
 local function make(className, props, parent)
 	local object = Instance.new(className)
 	for key, value in pairs(props or {}) do
