@@ -103,6 +103,7 @@ function Library:CreateWindow(props)
 	local unloaded = false
 	local notificationCards = {}
 	local config = read(props, "configuration", nil)
+	local loadingConfig = false
 	local closeCallback = read(props, "onClose", read(props, "closeCallback", nil))
 	local configFile
 	local configFolder
@@ -182,6 +183,8 @@ function Library:CreateWindow(props)
 	local waitingForHideKey = false
 	local settingsPopup
 	local hideKeyButton
+	local configSaveButton
+	local configLoadButton
 
 	local function connect(signal, callback)
 		local connection = signal:Connect(callback)
@@ -342,7 +345,7 @@ function Library:CreateWindow(props)
 		Name = "SettingsPopup",
 		AnchorPoint = Vector2.new(1, 0),
 		Position = UDim2.new(1, -8, 0, 48),
-		Size = UDim2.fromOffset(220, 86),
+		Size = UDim2.fromOffset(220, 114),
 		BackgroundColor3 = theme.panel,
 		BorderSizePixel = 0,
 		Visible = false,
@@ -373,6 +376,32 @@ function Library:CreateWindow(props)
 		ZIndex = 71,
 	}, settingsPopup)
 	round(hideKeyButton, 3)
+	configSaveButton = make("TextButton", {
+		Position = UDim2.fromOffset(10, 78),
+		Size = UDim2.fromOffset(95, 28),
+		BackgroundColor3 = theme.row,
+		BorderSizePixel = 0,
+		Font = Enum.Font.Gotham,
+		Text = "Save settings",
+		TextColor3 = theme.text,
+		TextSize = 10,
+		Visible = config ~= nil,
+		ZIndex = 71,
+	}, settingsPopup)
+	round(configSaveButton, 3)
+	configLoadButton = make("TextButton", {
+		Position = UDim2.fromOffset(115, 78),
+		Size = UDim2.fromOffset(95, 28),
+		BackgroundColor3 = theme.row,
+		BorderSizePixel = 0,
+		Font = Enum.Font.Gotham,
+		Text = "Load settings",
+		TextColor3 = theme.text,
+		TextSize = 10,
+		Visible = config ~= nil,
+		ZIndex = 71,
+	}, settingsPopup)
+	round(configLoadButton, 3)
 
 	contentFrame = make("Frame", {
 		Name = "Content",
@@ -747,7 +776,7 @@ function Library:CreateWindow(props)
 			if not silent then
 				invoke(self._callback, nextValue)
 			end
-			if not silent and config and read(config, "autoSave", false) then
+			if not silent and config and read(config, "autoSave", false) and not loadingConfig then
 				window:Save()
 			end
 		end
@@ -1601,14 +1630,13 @@ function Library:CreateWindow(props)
 				folderExists = folderOk and exists
 			end
 			if not folderExists then
-				local folderCreated = pcall(folder, configFolder)
-				if not folderCreated then return false end
+				pcall(folder, configFolder)
 			end
 		end
 		local ok, encoded = pcall(function() return HttpService:JSONEncode(serialize(flags)) end)
 		if not ok then return false end
-		local saved = pcall(writer, configFile, encoded)
-		return saved
+		local saved, result = pcall(writer, configFile, encoded)
+		return saved and result ~= false
 	end
 	function window:Load()
 		if not config or not configFile then return false end
@@ -1623,8 +1651,13 @@ function Library:CreateWindow(props)
 		if not readOk then return false end
 		local ok, decoded = pcall(function() return HttpService:JSONDecode(contents) end)
 		if not ok or type(decoded) ~= "table" then return false end
-		for flag, value in pairs(decoded) do self:Set(flag, deserialize(value), false) end
-		return true
+		loadingConfig = true
+		local applied, result = pcall(function()
+			for flag, value in pairs(decoded) do self:Set(flag, deserialize(value), false) end
+			return true
+		end)
+		loadingConfig = false
+		return applied and result == true
 	end
 	function window:ListConfigs()
 		local lister = fileFunction("listfiles")
@@ -1680,6 +1713,22 @@ function Library:CreateWindow(props)
 	connect(hideKeyButton.Activated, function()
 		waitingForHideKey = true
 		hideKeyButton.Text = "Press a key..."
+	end)
+	connect(configSaveButton.Activated, function()
+		local saved = window:Save()
+		window:Notify({
+			title = "Configuration",
+			content = saved and "Settings saved." or "Couldn't save settings. Check file access.",
+			duration = 3,
+		})
+	end)
+	connect(configLoadButton.Activated, function()
+		local loaded = window:Load()
+		window:Notify({
+			title = "Configuration",
+			content = loaded and "Settings loaded." or "No saved settings found or file access failed.",
+			duration = 3,
+		})
 	end)
 	connect(closeButton.Activated, function() window:Close() end)
 	connect(hideButton.Activated, function()
