@@ -1750,7 +1750,8 @@ function Library:CreateWindow(props)
 			duration = 5,
 		})
 	end)
-	connect(UserInputService.InputBegan, function(input)
+	connect(UserInputService.InputBegan, function(input, processed)
+		if processed or UserInputService:GetFocusedTextBox() then return end
 		if waitingForHideKey then
 			if input.KeyCode.Name == "Unknown" then return end
 			if input.KeyCode.Name == "Escape" then
