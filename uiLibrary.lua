@@ -1,6 +1,5 @@
 local Library = {}
 
-local GuiService = game:GetService("GuiService")
 local TextService = game:GetService("TextService")
 local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
@@ -416,50 +415,80 @@ function Library:CreateWindow(props)
 			TextXAlignment = Enum.TextXAlignment.Left,
 			AutoButtonColor = false,
 		}, footerGroup)
-		local externalLinkIcon = make("TextButton", {
-			Name = "ExternalLinkIcon",
+		local copyLinkButton = make("TextButton", {
+			Name = "CopyLink",
 			BackgroundTransparency = 1,
 			Text = "",
+			TextColor3 = Color3.fromRGB(91, 166, 235),
+			TextSize = 8,
+			Font = Enum.Font.Gotham,
+			TextXAlignment = Enum.TextXAlignment.Left,
 			AutoButtonColor = false,
 		}, footerGroup)
 		local iconColor = Color3.fromRGB(91, 166, 235)
-		for _, line in ipairs({
-			{ x = 1, y = 4, w = 1, h = 6, r = 0 },
-			{ x = 1, y = 9, w = 6, h = 1, r = 0 },
-			{ x = 6, y = 6, w = 1, h = 3, r = 0 },
-			{ x = 3, y = 6, w = 7, h = 1, r = -45 },
-			{ x = 7, y = 2, w = 1, h = 4, r = 0 },
-			{ x = 5, y = 2, w = 4, h = 1, r = 0 },
-		}) do
-			make("Frame", {
-				Position = UDim2.fromOffset(line.x, line.y),
-				Size = UDim2.fromOffset(line.w, line.h),
-				Rotation = line.r,
-				BackgroundColor3 = iconColor,
-				BorderSizePixel = 0,
-			}, externalLinkIcon)
-		end
+		local copyIconBack = make("Frame", {
+			Position = UDim2.fromOffset(2, 1),
+			Size = UDim2.fromOffset(6, 7),
+			BackgroundTransparency = 1,
+			BorderSizePixel = 0,
+		}, copyLinkButton)
+		stroke(copyIconBack, iconColor)
+		local copyIconFront = make("Frame", {
+			Position = UDim2.fromOffset(5, 4),
+			Size = UDim2.fromOffset(6, 7),
+			BackgroundColor3 = theme.header,
+			BorderSizePixel = 0,
+		}, copyLinkButton)
+		stroke(copyIconFront, iconColor)
+		local copiedText = "Copied to clipboard"
+		local showingCopiedText = false
+		local copyFeedbackVersion = 0
 		local function sizeFooter(availableWidth)
 			local textSize = availableWidth < 390 and 8 or 9
-			local bounds = Vector2.new(availableWidth, 16)
-			local attributionWidth = TextService:GetTextSize(footerAttribution, textSize, Enum.Font.Gotham, bounds).X
-			local linkWidth = TextService:GetTextSize(repositoryUrl, textSize, Enum.Font.Gotham, bounds).X
+			local function measure(text, size)
+				return TextService:GetTextSize(text, size, Enum.Font.Gotham, Vector2.new(availableWidth, 16)).X
+			end
+			local attributionWidth = measure(footerAttribution, textSize)
+			local linkWidth = measure(repositoryUrl, textSize)
+			local feedbackWidth = showingCopiedText and measure(copiedText, textSize) or 11
+			while showingCopiedText and textSize > 6 and attributionWidth + linkWidth + feedbackWidth + 12 > availableWidth - 16 do
+				textSize -= 1
+				attributionWidth = measure(footerAttribution, textSize)
+				linkWidth = measure(repositoryUrl, textSize)
+				feedbackWidth = measure(copiedText, textSize)
+			end
 			attributionLabel.TextSize = textSize
 			attributionLabel.Position = UDim2.fromOffset(0, 0)
 			attributionLabel.Size = UDim2.fromOffset(attributionWidth, 16)
 			repositoryLink.TextSize = textSize
 			repositoryLink.Position = UDim2.fromOffset(attributionWidth, 0)
 			repositoryLink.Size = UDim2.fromOffset(linkWidth, 16)
-			externalLinkIcon.Position = UDim2.fromOffset(attributionWidth + linkWidth + 4, 3)
-			externalLinkIcon.Size = UDim2.fromOffset(11, 11)
-			footerGroup.Size = UDim2.fromOffset(attributionWidth + linkWidth + 19, 16)
+			copyLinkButton.Position = UDim2.fromOffset(attributionWidth + linkWidth + 4, 0)
+			copyLinkButton.Size = UDim2.fromOffset(feedbackWidth, 16)
+			copyLinkButton.TextSize = textSize
+			copyIconBack.Visible = not showingCopiedText
+			copyIconFront.Visible = not showingCopiedText
+			copyLinkButton.Text = showingCopiedText and copiedText or ""
+			footerGroup.Size = UDim2.fromOffset(attributionWidth + linkWidth + feedbackWidth + 12, 16)
 		end
 		sizeFooter(width)
-		local function openRepository()
-			pcall(function() GuiService:OpenBrowserWindow(repositoryUrl) end)
+		local function copyRepositoryUrl()
+			local copy = fileFunction("setclipboard") or fileFunction("toclipboard")
+			if not copy then return end
+			local copied = pcall(copy, repositoryUrl)
+			if not copied then return end
+			showingCopiedText = true
+			copyFeedbackVersion += 1
+			local feedbackVersion = copyFeedbackVersion
+			sizeFooter(windowFrame.AbsoluteSize.X)
+			task.delay(1, function()
+				if feedbackVersion ~= copyFeedbackVersion or unloaded then return end
+				showingCopiedText = false
+				sizeFooter(windowFrame.AbsoluteSize.X)
+			end)
 		end
-		connect(repositoryLink.Activated, openRepository)
-		connect(externalLinkIcon.Activated, openRepository)
+		connect(repositoryLink.Activated, copyRepositoryUrl)
+		connect(copyLinkButton.Activated, copyRepositoryUrl)
 
 	local function makeColumn(parent, position, widthScale)
 		local column = make("ScrollingFrame", {
