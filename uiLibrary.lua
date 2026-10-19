@@ -117,6 +117,7 @@ function Library:CreateWindow(props)
 	local activeSections = {}
 	local defaultSections = {}
 	local currentSidebarWidth = 142
+	local resizeable = read(props, "resizeable", false) == true
 
 	local function fileFunction(name)
 		local environments = {}
@@ -231,6 +232,24 @@ function Library:CreateWindow(props)
 	}, gui)
 	round(windowFrame, 5)
 	stroke(windowFrame, theme.border)
+	local resizeHandle
+	if resizeable then
+		resizeHandle = make("TextButton", {
+			Name = "ResizeHandle",
+			AnchorPoint = Vector2.new(1, 1),
+			Position = UDim2.new(1, 0, 1, 0),
+			Size = UDim2.fromOffset(18, 18),
+			BackgroundColor3 = theme.header,
+			BackgroundTransparency = 0.15,
+			BorderSizePixel = 0,
+			AutoButtonColor = false,
+			Font = Enum.Font.Gotham,
+			Text = "◢",
+			TextColor3 = theme.accent,
+			TextSize = 12,
+			ZIndex = 10,
+		}, windowFrame)
+	end
 
 	local header = make("Frame", {
 		Name = "Header",
@@ -562,11 +581,13 @@ function Library:CreateWindow(props)
 			return
 		end
 		local size = viewportSize()
-		local newWidth = math.max(320, math.min(860, size.X - 24))
-		local newHeight = math.max(300, math.min(620, size.Y - 24))
+		local maxWidth = math.max(320, math.min(860, size.X - 24))
+		local maxHeight = math.max(300, math.min(620, size.Y - 24))
+		local newWidth = resizeable and math.clamp(windowFrame.Size.X.Offset, 320, maxWidth) or maxWidth
+		local newHeight = resizeable and math.clamp(windowFrame.Size.Y.Offset, 300, maxHeight) or maxHeight
 		windowFrame.Size = UDim2.fromOffset(newWidth, newHeight)
 		search.Size = UDim2.fromOffset(math.max(92, math.min(195, newWidth * 0.27)), 32)
-		local narrow = size.X < 680
+		local narrow = newWidth < 680
 		currentSidebarWidth = math.clamp(math.floor(newWidth * 0.2), 120, 142)
 		sidebar.Size = UDim2.new(0, currentSidebarWidth, 1, -70)
 		sidebarDivider.Position = UDim2.fromOffset(currentSidebarWidth - 1, 52)
@@ -1691,6 +1712,46 @@ function Library:CreateWindow(props)
 	local dragging = false
 	local dragStart
 	local startPosition
+	local resizing = false
+	local resizeStart
+	local resizeSize
+	local resizePosition
+	local resizeTouch
+	if resizeHandle then
+		connect(resizeHandle.InputBegan, function(input)
+			if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+				resizing = true
+				resizeTouch = input.UserInputType == Enum.UserInputType.Touch and input or nil
+				resizeStart = input.Position
+				resizeSize = windowFrame.AbsoluteSize
+				resizePosition = windowFrame.Position
+			end
+		end)
+		connect(UserInputService.InputChanged, function(input)
+			if resizing and (input.UserInputType == Enum.UserInputType.MouseMovement or input == resizeTouch) then
+				local delta = input.Position - resizeStart
+				local viewport = viewportSize()
+				local maxWidth = math.max(320, math.min(860, viewport.X - 24))
+				local maxHeight = math.max(300, math.min(620, viewport.Y - 24))
+				local newWidth = math.clamp(resizeSize.X + delta.X, 320, maxWidth)
+				local newHeight = math.clamp(resizeSize.Y + delta.Y, 300, maxHeight)
+				windowFrame.Size = UDim2.fromOffset(newWidth, newHeight)
+				windowFrame.Position = UDim2.new(
+					resizePosition.X.Scale,
+					resizePosition.X.Offset + (newWidth - resizeSize.X) / 2,
+					resizePosition.Y.Scale,
+					resizePosition.Y.Offset + (newHeight - resizeSize.Y) / 2
+				)
+				updateLayout()
+			end
+		end)
+		connect(UserInputService.InputEnded, function(input)
+			if input.UserInputType == Enum.UserInputType.MouseButton1 or input == resizeTouch then
+				resizing = false
+				resizeTouch = nil
+			end
+		end)
+	end
 	connect(header.InputBegan, function(input)
 		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
 			dragging = true
