@@ -108,7 +108,10 @@ function Library:CreateWindow(props)
 	local closeCallback = read(props, "onClose", read(props, "closeCallback", nil))
 	local configFile
 	local configFolder
-	local settingsFile = "uiLibrary_settings.json"
+	-- The library's own settings (the hide key) live next to the script configs.
+	local settingsFolder = "Phantom"
+	local settingsFile = settingsFolder .. "/uiLibrary_settings.json"
+	local legacySettingsFile = "uiLibrary_settings.json" -- where older versions saved it
 	local gui
 	local notificationGui
 	local windowFrame
@@ -204,11 +207,17 @@ function Library:CreateWindow(props)
 		local reader = fileFunction("readfile")
 		local exists = fileFunction("isfile")
 		if not reader then return Enum.KeyCode.RightControl end
+		local readPath = settingsFile
 		if exists then
 			local ok, present = pcall(exists, settingsFile)
-			if not ok or not present then return Enum.KeyCode.RightControl end
+			if not ok or not present then
+				-- Fall back to the old location so an existing choice isn't lost.
+				local legacyOk, legacyPresent = pcall(exists, legacySettingsFile)
+				if not legacyOk or not legacyPresent then return Enum.KeyCode.RightControl end
+				readPath = legacySettingsFile
+			end
 		end
-		local ok, settings = pcall(function() return HttpService:JSONDecode(reader(settingsFile)) end)
+		local ok, settings = pcall(function() return HttpService:JSONDecode(reader(readPath)) end)
 		if ok and type(settings) == "table" and type(settings.hideKey) == "string" then
 			-- Older settings files have no hideKeyType and always mean a KeyCode.
 			local key = resolveHideKey(settings.hideKey, settings.hideKeyType or "KeyCode")
@@ -220,6 +229,16 @@ function Library:CreateWindow(props)
 	local function saveHideKey(key)
 		local writer = fileFunction("writefile")
 		if not writer then return false end
+		local makeFolder = fileFunction("makefolder")
+		local isFolder = fileFunction("isfolder")
+		if makeFolder then
+			local folderExists = false
+			if isFolder then
+				local folderOk, present = pcall(isFolder, settingsFolder)
+				folderExists = folderOk and present
+			end
+			if not folderExists then pcall(makeFolder, settingsFolder) end
+		end
 		local ok, encoded = pcall(function()
 			local keyType = "KeyCode"
 			if type(key) == "string" then
