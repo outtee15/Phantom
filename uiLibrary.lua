@@ -1941,7 +1941,7 @@ function Library:CreateWindow(props)
 		if not fileFunction("iskeypressed") then
 			window:Notify({
 				title = "Side mouse buttons",
-				content = "This executor has no iskeypressed, so Mouse 4/5 can't be detected. Keys and middle mouse still work.",
+				content = "No iskeypressed here, so Mouse 4/5 can't be read. Remap the button to F13 in your mouse software and bind that key.",
 				duration = 6,
 			})
 		end
