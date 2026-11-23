@@ -6,15 +6,15 @@ local TweenService = game:GetService("TweenService")
 local HttpService = game:GetService("HttpService")
 local Themes = {
 	default = {
-		background = Color3.fromRGB(20, 20, 20),
-		panel = Color3.fromRGB(25, 25, 25),
-		row = Color3.fromRGB(29, 29, 29),
-		header = Color3.fromRGB(15, 15, 15),
+		background = Color3.fromRGB(18, 18, 22),
+		panel = Color3.fromRGB(24, 24, 29),
+		row = Color3.fromRGB(32, 32, 38),
+		header = Color3.fromRGB(13, 13, 17),
 		text = Color3.fromRGB(240, 240, 240),
 		muted = Color3.fromRGB(155, 155, 155),
 		accent = Color3.fromRGB(211, 117, 164),
-		border = Color3.fromRGB(43, 43, 43),
-		input = Color3.fromRGB(34, 34, 34),
+		border = Color3.fromRGB(44, 44, 52),
+		input = Color3.fromRGB(28, 28, 34),
 	},
 	ember = { accent = Color3.fromRGB(236, 132, 91) },
 	cobalt = { accent = Color3.fromRGB(87, 159, 222) },
@@ -116,7 +116,12 @@ function Library:CreateWindow(props)
 	local sectionCards = {}
 	local activeSections = {}
 	local defaultSections = {}
-	local currentSidebarWidth = 142
+	local HEADER_H = 40
+	local FOOTER_H = 18
+	local CHROME_H = HEADER_H + FOOTER_H
+	local DEFAULT_W, DEFAULT_H = 640, 440
+	local DESCRIBED = { Button = true, Toggle = true, Keybind = true }
+	local currentSidebarWidth = 128
 	local resizeable = read(props, "resizeable", false) == true
 
 	local function fileFunction(name)
@@ -219,8 +224,8 @@ function Library:CreateWindow(props)
 	}, getGuiParent(fileFunction("gethui")))
 
 	local viewport = viewportSize()
-	local width = math.max(320, math.min(860, viewport.X - 24))
-	local height = math.max(300, math.min(620, viewport.Y - 24))
+	local width = math.max(320, math.min(DEFAULT_W, viewport.X - 24))
+	local height = math.max(300, math.min(DEFAULT_H, viewport.Y - 24))
 	windowFrame = make("Frame", {
 		Name = "Window",
 		AnchorPoint = Vector2.new(0.5, 0.5),
@@ -230,7 +235,7 @@ function Library:CreateWindow(props)
 		BorderSizePixel = 0,
 		ClipsDescendants = true,
 	}, gui)
-	round(windowFrame, 5)
+	round(windowFrame, 8)
 	stroke(windowFrame, theme.border)
 	local resizeHandle
 	if resizeable then
@@ -253,64 +258,74 @@ function Library:CreateWindow(props)
 
 	local header = make("Frame", {
 		Name = "Header",
-		Size = UDim2.new(1, 0, 0, 52),
+		Size = UDim2.new(1, 0, 0, HEADER_H),
 		BackgroundColor3 = theme.header,
 		BorderSizePixel = 0,
 	}, windowFrame)
 
+	make("Frame", {
+		Name = "AccentLine",
+		AnchorPoint = Vector2.new(0, 1),
+		Position = UDim2.fromScale(0, 1),
+		Size = UDim2.new(1, 0, 0, 1),
+		BackgroundColor3 = theme.accent,
+		BackgroundTransparency = 0.4,
+		BorderSizePixel = 0,
+	}, header)
+
 	local sidebar = make("Frame", {
 		Name = "Sidebar",
-		Position = UDim2.fromOffset(0, 52),
-		Size = UDim2.new(0, currentSidebarWidth, 1, -70),
+		Position = UDim2.fromOffset(0, HEADER_H),
+		Size = UDim2.new(0, currentSidebarWidth, 1, -CHROME_H),
 		BackgroundColor3 = theme.header,
 		BorderSizePixel = 0,
 	}, windowFrame)
 	make("UIListLayout", {
-		Padding = UDim.new(0, 5),
+		Padding = UDim.new(0, 3),
 		SortOrder = Enum.SortOrder.LayoutOrder,
 		HorizontalAlignment = Enum.HorizontalAlignment.Left,
 	}, sidebar)
 	make("UIPadding", {
-		PaddingTop = UDim.new(0, 10),
+		PaddingTop = UDim.new(0, 8),
 		PaddingLeft = UDim.new(0, 7),
 		PaddingRight = UDim.new(0, 7),
 	}, sidebar)
 	local sidebarDivider = make("Frame", {
-		Position = UDim2.fromOffset(currentSidebarWidth - 1, 52),
-		Size = UDim2.new(0, 1, 1, -70),
+		Position = UDim2.fromOffset(currentSidebarWidth - 1, HEADER_H),
+		Size = UDim2.new(0, 1, 1, -CHROME_H),
 		BackgroundColor3 = theme.border,
 		BorderSizePixel = 0,
 	}, windowFrame)
 
 	local titleLabel = make("TextLabel", {
 		Name = "Title",
-		Position = UDim2.fromOffset(14, 8),
-		Size = UDim2.new(0.32, 0, 0, 20),
+		Position = UDim2.fromOffset(12, 6),
+		Size = UDim2.new(0.32, 0, 0, 16),
 		BackgroundTransparency = 1,
 		Font = Enum.Font.GothamMedium,
 		Text = tostring(read(props, "name", "Rayfield Window")),
 		TextColor3 = theme.text,
-		TextSize = 14,
+		TextSize = 13,
 		TextXAlignment = Enum.TextXAlignment.Left,
 		TextTruncate = Enum.TextTruncate.AtEnd,
 	}, header)
 	local subtitleLabel = make("TextLabel", {
 		Name = "Subtitle",
-		Position = UDim2.fromOffset(14, 28),
-		Size = UDim2.new(0.32, 0, 0, 15),
+		Position = UDim2.fromOffset(12, 22),
+		Size = UDim2.new(0.32, 0, 0, 12),
 		BackgroundTransparency = 1,
 		Font = Enum.Font.Gotham,
 		Text = tostring(read(props, "subtitle", "")),
 		TextColor3 = theme.muted,
-		TextSize = 10,
+		TextSize = 9,
 		TextXAlignment = Enum.TextXAlignment.Left,
 		TextTruncate = Enum.TextTruncate.AtEnd,
-	}, header)
-	local search = make("TextBox", {
+		}, header)
+		local search = make("TextBox", {
 		Name = "Search",
 		AnchorPoint = Vector2.new(1, 0.5),
 		Position = UDim2.new(1, -96, 0.5, 0),
-		Size = UDim2.fromOffset(math.max(92, math.min(195, width * 0.27)), 32),
+		Size = UDim2.fromOffset(math.max(92, math.min(195, width * 0.27)), 24),
 		BackgroundColor3 = theme.input,
 		BorderSizePixel = 0,
 		ClearTextOnFocus = false,
@@ -319,10 +334,10 @@ function Library:CreateWindow(props)
 		Text = "",
 		TextColor3 = theme.text,
 		PlaceholderColor3 = theme.muted,
-		TextSize = 12,
+		TextSize = 11,
 		TextXAlignment = Enum.TextXAlignment.Left,
-	}, header)
-	round(search, 4)
+		}, header)
+		round(search, 4)
 	make("UIPadding", {
 		PaddingLeft = UDim.new(0, 12),
 		PaddingRight = UDim.new(0, 8),
@@ -424,8 +439,8 @@ function Library:CreateWindow(props)
 
 	contentFrame = make("Frame", {
 		Name = "Content",
-		Position = UDim2.fromOffset(currentSidebarWidth, 52),
-		Size = UDim2.new(1, -currentSidebarWidth, 1, -70),
+		Position = UDim2.fromOffset(currentSidebarWidth, HEADER_H),
+		Size = UDim2.new(1, -currentSidebarWidth, 1, -CHROME_H),
 		BackgroundColor3 = theme.background,
 		BorderSizePixel = 0,
 	}, windowFrame)
@@ -550,12 +565,12 @@ function Library:CreateWindow(props)
 			ScrollBarImageColor3 = theme.accent,
 		}, parent)
 		make("UIListLayout", {
-			Padding = UDim.new(0, 7),
+			Padding = UDim.new(0, 5),
 			SortOrder = Enum.SortOrder.LayoutOrder,
-		}, column)
+			}, column)
 		make("UIPadding", {
-			PaddingTop = UDim.new(0, 6),
-			PaddingBottom = UDim.new(0, 8),
+			PaddingTop = UDim.new(0, 4),
+			PaddingBottom = UDim.new(0, 6),
 		}, column)
 		return column
 	end
@@ -583,24 +598,24 @@ function Library:CreateWindow(props)
 		local size = viewportSize()
 		local maxWidth = math.max(320, math.min(860, size.X - 24))
 		local maxHeight = math.max(300, math.min(620, size.Y - 24))
-		local newWidth = resizeable and math.clamp(windowFrame.Size.X.Offset, 320, maxWidth) or maxWidth
-		local newHeight = resizeable and math.clamp(windowFrame.Size.Y.Offset, 300, maxHeight) or maxHeight
+		local newWidth = resizeable and math.clamp(windowFrame.Size.X.Offset, 320, maxWidth) or math.max(320, math.min(DEFAULT_W, size.X - 24))
+		local newHeight = resizeable and math.clamp(windowFrame.Size.Y.Offset, 300, maxHeight) or math.max(300, math.min(DEFAULT_H, size.Y - 24))
 		windowFrame.Size = UDim2.fromOffset(newWidth, newHeight)
-		search.Size = UDim2.fromOffset(math.max(92, math.min(195, newWidth * 0.27)), 32)
-		local narrow = newWidth < 680
-		currentSidebarWidth = math.clamp(math.floor(newWidth * 0.2), 120, 142)
-		sidebar.Size = UDim2.new(0, currentSidebarWidth, 1, -70)
-		sidebarDivider.Position = UDim2.fromOffset(currentSidebarWidth - 1, 52)
-		sidebarDivider.Size = UDim2.new(0, 1, 1, -70)
-		contentFrame.Position = UDim2.fromOffset(currentSidebarWidth, 52)
-		contentFrame.Size = UDim2.new(1, -currentSidebarWidth, 1, -70)
-		titleLabel.Size = UDim2.new(newWidth < 500 and 0.18 or 0.32, 0, 0, 20)
-		subtitleLabel.Size = UDim2.new(newWidth < 500 and 0.18 or 0.32, 0, 0, 15)
+		search.Size = UDim2.fromOffset(math.max(92, math.min(195, newWidth * 0.27)), 24)
+		local narrow = newWidth < 520
+		currentSidebarWidth = math.clamp(math.floor(newWidth * 0.2), 108, 128)
+		sidebar.Size = UDim2.new(0, currentSidebarWidth, 1, -CHROME_H)
+		sidebarDivider.Position = UDim2.fromOffset(currentSidebarWidth - 1, HEADER_H)
+		sidebarDivider.Size = UDim2.new(0, 1, 1, -CHROME_H)
+		contentFrame.Position = UDim2.fromOffset(currentSidebarWidth, HEADER_H)
+		contentFrame.Size = UDim2.new(1, -currentSidebarWidth, 1, -CHROME_H)
+		titleLabel.Size = UDim2.new(newWidth < 500 and 0.18 or 0.32, 0, 0, 16)
+		subtitleLabel.Size = UDim2.new(newWidth < 500 and 0.18 or 0.32, 0, 0, 12)
 		search.Visible = newWidth >= 500
 		sizeFooter(newWidth)
 		for _, tab in ipairs(tabs) do
-			tab._button.Size = UDim2.fromOffset(currentSidebarWidth - 14, 34)
-			tab._nameLabel.Size = UDim2.new(1, -43, 1, 0)
+			tab._button.Size = UDim2.fromOffset(currentSidebarWidth - 14, 28)
+			tab._nameLabel.Size = UDim2.new(1, -36, 1, 0)
 			local tabLeft, tabRight = tab._columns[1], tab._columns[2]
 			tabLeft.Size = narrow and UDim2.new(1, -16, 1, -12) or UDim2.new(0.5, -12, 1, -12)
 			tabRight.Position = narrow and UDim2.new(0, -10000, 0, 0) or UDim2.new(0.5, 4, 0, 0)
@@ -621,11 +636,12 @@ function Library:CreateWindow(props)
 		for _, item in ipairs(tabs) do
 			item._page.Visible = item == tab
 			local selected = item == tab
-			item._button.BackgroundColor3 = selected and theme.accent or theme.header
+			item._button.BackgroundColor3 = selected and theme.row or theme.header
+			item._indicator.Visible = selected
 			if item._icon:IsA("ImageLabel") then
-				item._icon.ImageColor3 = selected and theme.text or theme.muted
+				item._icon.ImageColor3 = selected and theme.accent or theme.muted
 			else
-				item._icon.TextColor3 = selected and theme.text or theme.muted
+				item._icon.TextColor3 = selected and theme.accent or theme.muted
 			end
 			item._nameLabel.TextColor3 = selected and theme.text or theme.muted
 		end
@@ -653,13 +669,13 @@ function Library:CreateWindow(props)
 		local column = tab._columns[columnIndex]
 		local card = make("Frame", {
 			Name = "Section_" .. tostring(name),
-			Size = UDim2.new(1, -2, 0, 34),
+			Size = UDim2.new(1, -2, 0, 26),
 			AutomaticSize = Enum.AutomaticSize.Y,
 			BackgroundColor3 = theme.panel,
 			BorderSizePixel = 0,
 			LayoutOrder = index,
 		}, column)
-		round(card, 4)
+		round(card, 6)
 		stroke(card, theme.border)
 		make("UIListLayout", {
 			SortOrder = Enum.SortOrder.LayoutOrder,
@@ -667,7 +683,7 @@ function Library:CreateWindow(props)
 		}, card)
 		local heading = make("TextButton", {
 			Name = "SectionHeader",
-			Size = UDim2.new(1, 0, 0, 36),
+			Size = UDim2.new(1, 0, 0, 26),
 			BackgroundTransparency = 1,
 			Font = Enum.Font.GothamMedium,
 			Text = "",
@@ -676,53 +692,59 @@ function Library:CreateWindow(props)
 			TextXAlignment = Enum.TextXAlignment.Left,
 			LayoutOrder = 0,
 		}, card)
+		make("Frame", {
+			Position = UDim2.fromOffset(0, 7),
+			Size = UDim2.fromOffset(2, 12),
+			BackgroundColor3 = theme.accent,
+			BorderSizePixel = 0,
+		}, heading)
 		local iconText = icon and tostring(icon) or ""
 		local headingIcon = make("TextLabel", {
 			Position = UDim2.fromOffset(9, 0),
-			Size = UDim2.fromOffset(21, 36),
+			Size = UDim2.fromOffset(18, 26),
 			BackgroundTransparency = 1,
 			Font = Enum.Font.GothamMedium,
 			Text = iconText,
 			TextColor3 = theme.accent,
-			TextSize = 15,
+			TextSize = 13,
 		}, heading)
 		local headingName = make("TextLabel", {
-			Position = UDim2.fromOffset(iconText ~= "" and 37 or 12, 0),
-			Size = UDim2.new(1, -62, 1, 0),
+			Position = UDim2.fromOffset(iconText ~= "" and 30 or 10, 0),
+			Size = UDim2.new(1, -46, 1, 0),
 			BackgroundTransparency = 1,
 			Font = Enum.Font.GothamMedium,
 			Text = tostring(name),
 			TextColor3 = theme.text,
-			TextSize = 12,
+			TextSize = 11,
 			TextXAlignment = Enum.TextXAlignment.Left,
 			TextTruncate = Enum.TextTruncate.AtEnd,
 		}, heading)
 		local chevron = make("TextLabel", {
 			AnchorPoint = Vector2.new(1, 0.5),
-			Position = UDim2.new(1, -12, 0.5, 0),
-			Size = UDim2.fromOffset(16, 16),
+			Position = UDim2.new(1, -6, 0.5, 0),
+			Size = UDim2.fromOffset(12, 12),
 			BackgroundTransparency = 1,
 			Font = Enum.Font.Gotham,
 			Text = "v",
 			TextColor3 = theme.muted,
-			TextSize = 18,
+			TextSize = 12,
 		}, heading)
 		local body = make("Frame", {
 			Name = "Elements",
-			Size = UDim2.new(1, -16, 0, 0),
-			Position = UDim2.fromOffset(8, 36),
+			Size = UDim2.new(1, -12, 0, 0),
+			Position = UDim2.fromOffset(6, 26),
 			AutomaticSize = Enum.AutomaticSize.Y,
 			BackgroundTransparency = 1,
 		}, card)
 		local bodyList = make("UIListLayout", {
-			Padding = UDim.new(0, 2),
+			Padding = UDim.new(0, 1),
 			SortOrder = Enum.SortOrder.LayoutOrder,
-		}, body)
+			}, body)
 		local bodyPadding = make("UIPadding", {
-			PaddingLeft = UDim.new(0, 7),
-			PaddingRight = UDim.new(0, 7),
+			PaddingLeft = UDim.new(0, 4),
+			PaddingRight = UDim.new(0, 4),
 			PaddingTop = UDim.new(0, 1),
-			PaddingBottom = UDim.new(0, 7),
+			PaddingBottom = UDim.new(0, 4),
 		}, body)
 		local section = {
 			_name = name,
@@ -748,7 +770,7 @@ function Library:CreateWindow(props)
 			body.Visible = not section._collapsed
 			chevron.Text = section._collapsed and ">" or "v"
 			card.AutomaticSize = section._collapsed and Enum.AutomaticSize.None or Enum.AutomaticSize.Y
-			card.Size = UDim2.new(1, -2, 0, section._collapsed and 36 or 34)
+			card.Size = UDim2.new(1, -2, 0, 26)
 		end)
 		return section
 	end
@@ -762,7 +784,7 @@ function Library:CreateWindow(props)
 
 	local function createRow(section, height)
 		local row = make("Frame", {
-			Size = UDim2.new(1, 0, 0, height or 34),
+			Size = UDim2.new(1, 0, 0, height or 24),
 			BackgroundTransparency = 1,
 		}, section._body)
 		return row
@@ -852,30 +874,33 @@ function Library:CreateWindow(props)
 		return handle
 	end
 
-	local function attachDescription(handle, row, props, label)
+	local function attachDescription(handle, row, props)
 		local descriptionText = tostring(read(props, "description", ""))
-		if descriptionText == "" then
+		if descriptionText == "" or not DESCRIBED[handle._kind] then
 			return
 		end
-		local description = make("TextLabel", {
+		local label = row:FindFirstChildOfClass("TextLabel")
+		if label then
+			label.Size = UDim2.new(label.Size.X.Scale, label.Size.X.Offset, 0, 16)
+		end
+		handle._description = make("TextLabel", {
 			Name = "Description",
-			Position = UDim2.fromOffset(0, 19),
-			Size = UDim2.new(1, -4, 0, 14),
+			Position = UDim2.fromOffset(0, 15),
+			Size = UDim2.new(0.75, 0, 0, 12),
 			BackgroundTransparency = 1,
 			Font = Enum.Font.Gotham,
 			Text = descriptionText,
 			TextColor3 = theme.muted,
-			TextSize = 10,
+			TextSize = 9,
 			TextXAlignment = Enum.TextXAlignment.Left,
 			TextTruncate = Enum.TextTruncate.AtEnd,
-		}, label)
-		handle._description = description
+		}, row)
 	end
 
 	local function makeLabel(row, text, widthScale)
 		return make("TextLabel", {
 			Position = UDim2.fromOffset(0, 0),
-			Size = UDim2.new(widthScale or 0.7, 0, 0, 28),
+			Size = UDim2.new(widthScale or 0.7, 0, 0, 24),
 			BackgroundTransparency = 1,
 			Font = Enum.Font.Gotham,
 			Text = tostring(text),
@@ -889,7 +914,7 @@ function Library:CreateWindow(props)
 	local function addElement(tab, kind, props, builder, initialValue, setter)
 		props = props or {}
 		local section = activeSections[tab] or ensureDefaultSection(tab)
-		local row = createRow(section, read(props, "description", "") ~= "" and 42 or 34)
+		local row = createRow(section, (read(props, "description", "") ~= "" and DESCRIBED[kind]) and 32 or 24)
 		row.LayoutOrder = #section._entries + 1
 		local handle = createValueHandle(tab, section, kind, props, initialValue, setter)
 		handle._row = row
@@ -919,7 +944,7 @@ function Library:CreateWindow(props)
 				local button = make("TextButton", {
 					AnchorPoint = Vector2.new(1, 0.5),
 					Position = UDim2.new(1, 0, 0.5, 0),
-					Size = UDim2.fromOffset(82, 26),
+					Size = UDim2.fromOffset(60, 20),
 					BackgroundColor3 = theme.row,
 					BorderSizePixel = 0,
 					Font = Enum.Font.Gotham,
@@ -928,7 +953,9 @@ function Library:CreateWindow(props)
 					TextSize = 10,
 				}, row)
 				round(button, 3)
-				stroke(button, theme.border)
+				local buttonStroke = stroke(button, theme.border)
+				connect(button.MouseEnter, function() tween(buttonStroke, { Color = theme.accent }, 0.1) end)
+				connect(button.MouseLeave, function() tween(buttonStroke, { Color = theme.border }, 0.1) end)
 				table.insert(buttonHandle._controls, button)
 				connect(button.Activated, function()
 					if not buttonHandle._locked then
@@ -945,22 +972,22 @@ function Library:CreateWindow(props)
 				local switch = make("TextButton", {
 					AnchorPoint = Vector2.new(1, 0.5),
 					Position = UDim2.new(1, 0, 0.5, 0),
-					Size = UDim2.fromOffset(38, 21),
-					BackgroundColor3 = theme.muted,
+					Size = UDim2.fromOffset(30, 16),
+					BackgroundColor3 = theme.border,
 					BorderSizePixel = 0,
 					Text = "",
 				}, row)
-				round(switch, 2)
+				round(switch, 8)
 				local thumb = make("Frame", {
-					Position = UDim2.fromOffset(3, 3),
-					Size = UDim2.fromOffset(15, 15),
+					Position = UDim2.fromOffset(2, 2),
+					Size = UDim2.fromOffset(12, 12),
 					BackgroundColor3 = Color3.fromRGB(245, 245, 245),
 					BorderSizePixel = 0,
 				}, switch)
-				round(thumb, 1)
+				round(thumb, 6)
 				handle._refresh = function(nextValue)
-					tween(switch, { BackgroundColor3 = nextValue and theme.accent or theme.muted }, 0.12)
-					tween(thumb, { Position = nextValue and UDim2.new(1, -18, 0, 3) or UDim2.fromOffset(3, 3) }, 0.12)
+					tween(switch, { BackgroundColor3 = nextValue and theme.accent or theme.border }, 0.12)
+					tween(thumb, { Position = nextValue and UDim2.new(1, -14, 0, 2) or UDim2.fromOffset(2, 2) }, 0.12)
 				end
 				handle._refresh(handle.value)
 				connect(switch.Activated, function()
@@ -979,12 +1006,12 @@ function Library:CreateWindow(props)
 			local value = math.clamp(tonumber(read(props, "value", minValue)) or minValue, minValue, maxValue)
 			local increment = tonumber(read(props, "increment", 1)) or 1
 			return addElement(tab, "Slider", props, function(handle, row, options)
-				row.Size = UDim2.new(1, 0, 0, 51)
-				makeLabel(row, read(options, "name", "Slider"), 0.7)
+				row.Size = UDim2.new(1, 0, 0, 36)
+				makeLabel(row, read(options, "name", "Slider"), 0.7).Size = UDim2.new(0.7, 0, 0, 18)
 				local readout = make("TextLabel", {
 					AnchorPoint = Vector2.new(1, 0),
 					Position = UDim2.new(1, 0, 0, 0),
-					Size = UDim2.fromOffset(88, 25),
+					Size = UDim2.fromOffset(88, 18),
 					BackgroundTransparency = 1,
 					Font = Enum.Font.Gotham,
 					TextColor3 = theme.text,
@@ -992,22 +1019,38 @@ function Library:CreateWindow(props)
 					TextXAlignment = Enum.TextXAlignment.Right,
 				}, row)
 				local track = make("TextButton", {
-					Position = UDim2.fromOffset(0, 30),
-					Size = UDim2.new(1, 0, 0, 9),
-					BackgroundColor3 = theme.row,
-					BorderSizePixel = 0,
+					Position = UDim2.fromOffset(0, 20),
+					Size = UDim2.new(1, 0, 0, 14),
+					BackgroundTransparency = 1,
 					Text = "",
 				}, row)
-				round(track, 2)
+				local rail = make("Frame", {
+					AnchorPoint = Vector2.new(0, 0.5),
+					Position = UDim2.new(0, 0, 0.5, 0),
+					Size = UDim2.new(1, 0, 0, 4),
+					BackgroundColor3 = theme.border,
+					BorderSizePixel = 0,
+				}, track)
+				round(rail, 2)
 				local fill = make("Frame", {
 					Size = UDim2.new(0, 0, 1, 0),
 					BackgroundColor3 = theme.accent,
 					BorderSizePixel = 0,
-				}, track)
+				}, rail)
 				round(fill, 2)
+				local knob = make("Frame", {
+					AnchorPoint = Vector2.new(0.5, 0.5),
+					Position = UDim2.new(0, 0, 0.5, 0),
+					Size = UDim2.fromOffset(10, 10),
+					BackgroundColor3 = Color3.fromRGB(245, 245, 245),
+					BorderSizePixel = 0,
+					ZIndex = 2,
+				}, rail)
+				round(knob, 5)
 				local function refresh(nextValue)
 					local fraction = maxValue == minValue and 0 or (nextValue - minValue) / (maxValue - minValue)
 					fill.Size = UDim2.new(math.clamp(fraction, 0, 1), 0, 1, 0)
+					knob.Position = UDim2.new(math.clamp(fraction, 0, 1), 0, 0.5, 0)
 					readout.Text = tostring(nextValue) .. tostring(read(options, "suffix", ""))
 				end
 				handle._refresh = refresh
@@ -1054,11 +1097,11 @@ function Library:CreateWindow(props)
 				return value == nil and {} or { value }
 			end
 			return addElement(tab, "Dropdown", props, function(handle, row, configuration)
-				row.Size = UDim2.new(1, 0, 0, 55)
-				makeLabel(row, read(configuration, "name", "Dropdown"), 1)
+				row.Size = UDim2.new(1, 0, 0, 44)
+				makeLabel(row, read(configuration, "name", "Dropdown"), 1).Size = UDim2.new(1, 0, 0, 18)
 				local choice = make("TextButton", {
-					Position = UDim2.fromOffset(0, 27),
-					Size = UDim2.new(1, 0, 0, 25),
+					Position = UDim2.fromOffset(0, 20),
+					Size = UDim2.new(1, 0, 0, 22),
 					BackgroundColor3 = theme.row,
 					BorderSizePixel = 0,
 					Font = Enum.Font.Gotham,
@@ -1069,6 +1112,17 @@ function Library:CreateWindow(props)
 				}, row)
 				round(choice, 3)
 				make("UIPadding", { PaddingLeft = UDim.new(0, 8) }, choice)
+				stroke(choice, theme.border)
+				make("TextLabel", {
+					AnchorPoint = Vector2.new(1, 0.5),
+					Position = UDim2.new(1, -4, 0.5, 0),
+					Size = UDim2.fromOffset(12, 12),
+					BackgroundTransparency = 1,
+					Font = Enum.Font.Gotham,
+					Text = "v",
+					TextColor3 = theme.muted,
+					TextSize = 12,
+				}, choice)
 				local popup = make("Frame", {
 					Position = UDim2.new(0, 0, 1, 3),
 					Size = UDim2.new(1, 0, 0, 0),
@@ -1090,8 +1144,8 @@ function Library:CreateWindow(props)
 				refresh(handle.value)
 				local function setPopupOpen(isOpen)
 					popup.Visible = isOpen
-					row.Size = UDim2.new(1, 0, 0, isOpen and (55 + math.min(#options * 25, 150)) or 55)
-					popup.Size = UDim2.new(1, 0, 0, math.min(#options * 25, 150))
+					row.Size = UDim2.new(1, 0, 0, isOpen and (44 + math.min(#options * 22, 132)) or 44)
+					popup.Size = UDim2.new(1, 0, 0, math.min(#options * 22, 132))
 				end
 				local function rebuildOptions()
 					for _, child in ipairs(popup:GetChildren()) do
@@ -1099,7 +1153,7 @@ function Library:CreateWindow(props)
 					end
 					for index, option in ipairs(options) do
 						local optionButton = make("TextButton", {
-							Size = UDim2.new(1, 0, 0, 25),
+							Size = UDim2.new(1, 0, 0, 22),
 							BackgroundColor3 = theme.panel,
 							BorderSizePixel = 0,
 							Font = Enum.Font.Gotham,
@@ -1140,11 +1194,11 @@ function Library:CreateWindow(props)
 		apiTable.CreateInput = api(function(tab, props)
 			local value = tostring(read(props, "value", ""))
 			return addElement(tab, "Input", props, function(handle, row, options)
-				row.Size = UDim2.new(1, 0, 0, 54)
-				makeLabel(row, read(options, "name", "Input"), 1)
+				row.Size = UDim2.new(1, 0, 0, 44)
+				makeLabel(row, read(options, "name", "Input"), 1).Size = UDim2.new(1, 0, 0, 18)
 				local box = make("TextBox", {
-					Position = UDim2.fromOffset(0, 26),
-					Size = UDim2.new(1, 0, 0, 26),
+					Position = UDim2.fromOffset(0, 20),
+					Size = UDim2.new(1, 0, 0, 22),
 					BackgroundColor3 = theme.row,
 					BorderSizePixel = 0,
 					ClearTextOnFocus = false,
@@ -1157,6 +1211,9 @@ function Library:CreateWindow(props)
 					TextXAlignment = Enum.TextXAlignment.Left,
 				}, row)
 				round(box, 3)
+				local boxStroke = stroke(box, theme.border)
+				connect(box.Focused, function() boxStroke.Color = theme.accent end)
+				connect(box.FocusLost, function() boxStroke.Color = theme.border end)
 				make("UIPadding", { PaddingLeft = UDim.new(0, 8), PaddingRight = UDim.new(0, 8) }, box)
 				handle._refresh = function(nextValue) box.Text = tostring(nextValue or "") end
 				connect(box.FocusLost, function()
@@ -1174,7 +1231,7 @@ function Library:CreateWindow(props)
 				local button = make("TextButton", {
 					AnchorPoint = Vector2.new(1, 0.5),
 					Position = UDim2.new(1, 0, 0.5, 0),
-					Size = UDim2.fromOffset(82, 26),
+					Size = UDim2.fromOffset(60, 20),
 					BackgroundColor3 = theme.row,
 					BorderSizePixel = 0,
 					Font = Enum.Font.Gotham,
@@ -1183,6 +1240,7 @@ function Library:CreateWindow(props)
 					TextSize = 10,
 				}, row)
 				round(button, 3)
+				stroke(button, theme.border)
 				local capturing = false
 				local function display(value)
 					button.Text = typeof(value) == "EnumItem" and value.Name or tostring(value)
@@ -1218,7 +1276,7 @@ function Library:CreateWindow(props)
 				local swatch = make("TextButton", {
 					AnchorPoint = Vector2.new(1, 0),
 					Position = UDim2.new(1, 0, 0, 4),
-					Size = UDim2.fromOffset(42, 22),
+					Size = UDim2.fromOffset(34, 16),
 					BackgroundColor3 = initial,
 					BorderSizePixel = 0,
 					Text = "",
@@ -1226,8 +1284,8 @@ function Library:CreateWindow(props)
 				round(swatch, 3)
 				stroke(swatch, theme.border)
 				local picker = make("Frame", {
-					Position = UDim2.fromOffset(0, 32),
-					Size = UDim2.new(1, 0, 0, 128),
+					Position = UDim2.fromOffset(0, 28),
+					Size = UDim2.new(1, 0, 0, 100),
 					BackgroundColor3 = theme.panel,
 					BorderSizePixel = 0,
 					Visible = false,
@@ -1237,7 +1295,7 @@ function Library:CreateWindow(props)
 				stroke(picker, theme.border)
 				local saturationValue = make("TextButton", {
 					Position = UDim2.fromOffset(7, 7),
-					Size = UDim2.new(1, -14, 0, 82),
+					Size = UDim2.new(1, -14, 0, 64),
 					BackgroundColor3 = Color3.fromHSV(initialHue, 1, 1),
 					BorderSizePixel = 0,
 					ClipsDescendants = true,
@@ -1269,8 +1327,8 @@ function Library:CreateWindow(props)
 					}),
 				}, shade)
 			local hueBar = make("TextButton", {
-				Position = UDim2.fromOffset(7, 96),
-				Size = UDim2.new(1, -14, 0, 20),
+				Position = UDim2.fromOffset(7, 78),
+				Size = UDim2.new(1, -14, 0, 14),
 				BackgroundColor3 = Color3.new(1, 1, 1),
 				BorderSizePixel = 0,
 				Text = "",
@@ -1313,7 +1371,7 @@ function Library:CreateWindow(props)
 			connect(swatch.Activated, function()
 				if handle._locked then return end
 				picker.Visible = not picker.Visible
-				row.Size = UDim2.new(1, 0, 0, picker.Visible and 164 or 34)
+				row.Size = UDim2.new(1, 0, 0, picker.Visible and 128 or 24)
 			end)
 			for _, control in ipairs({ hueBar, saturationValue }) do
 				connect(control.InputBegan, function(input)
@@ -1343,7 +1401,7 @@ function Library:CreateWindow(props)
 		apiTable.CreateLabel = api(function(tab, props)
 			local text = tostring(read(props, "name", read(props, "text", "")))
 			local sectionNow = activeSections[tab] or ensureDefaultSection(tab)
-			local row = createRow(sectionNow, 28)
+			local row = createRow(sectionNow, 22)
 			row.LayoutOrder = #sectionNow._entries + 1
 			local label = makeLabel(row, text, 1)
 			label.TextColor3 = theme.text
@@ -1354,10 +1412,10 @@ function Library:CreateWindow(props)
 		end)
 		apiTable.CreateParagraph = api(function(tab, props)
 			local sectionNow = activeSections[tab] or ensureDefaultSection(tab)
-			local row = createRow(sectionNow, 52)
+			local row = createRow(sectionNow, 46)
 			row.LayoutOrder = #sectionNow._entries + 1
 			make("TextLabel", {
-				Size = UDim2.new(1, 0, 0, 20),
+				Size = UDim2.new(1, 0, 0, 16),
 				BackgroundTransparency = 1,
 				Font = Enum.Font.GothamMedium,
 				Text = tostring(read(props, "title", read(props, "name", ""))),
@@ -1366,8 +1424,8 @@ function Library:CreateWindow(props)
 				TextXAlignment = Enum.TextXAlignment.Left,
 			}, row)
 			local body = make("TextLabel", {
-				Position = UDim2.fromOffset(0, 19),
-				Size = UDim2.new(1, 0, 0, 32),
+				Position = UDim2.fromOffset(0, 17),
+				Size = UDim2.new(1, 0, 0, 28),
 				BackgroundTransparency = 1,
 				Font = Enum.Font.Gotham,
 				Text = tostring(read(props, "content", read(props, "text", ""))),
@@ -1381,10 +1439,10 @@ function Library:CreateWindow(props)
 		end)
 		apiTable.CreateDivider = api(function(tab)
 			local sectionNow = activeSections[tab] or ensureDefaultSection(tab)
-			local row = createRow(sectionNow, 13)
+			local row = createRow(sectionNow, 9)
 			row.LayoutOrder = #sectionNow._entries + 1
 			make("Frame", {
-				Position = UDim2.fromOffset(0, 6),
+				Position = UDim2.fromOffset(0, 4),
 				Size = UDim2.new(1, 0, 0, 1),
 				BackgroundColor3 = theme.border,
 				BorderSizePixel = 0,
@@ -1407,18 +1465,18 @@ function Library:CreateWindow(props)
 		tab._columns = makeTabPage(tab)
 		local button = make("TextButton", {
 			Name = "Tab_" .. tabName,
-			Size = UDim2.fromOffset(currentSidebarWidth - 14, 34),
+			Size = UDim2.fromOffset(currentSidebarWidth - 14, 28),
 			BackgroundColor3 = theme.header,
 			BorderSizePixel = 0,
 			AutoButtonColor = false,
 			Text = "",
 			LayoutOrder = #tabs + 1,
 		}, sidebar)
-		round(button, 5)
+		round(button, 6)
 		local iconValue = read(tabProps, "icon", nil)
 		local iconIsAsset = type(iconValue) == "number" or (type(iconValue) == "string" and (iconValue:find("rbxassetid://", 1, true) == 1 or iconValue:find("rbxthumb://", 1, true) == 1))
 		local icon = make(iconIsAsset and "ImageLabel" or "TextLabel", {
-			Position = UDim2.fromOffset(8, 7),
+			Position = UDim2.fromOffset(8, 4),
 			Size = UDim2.fromOffset(20, 20),
 			BackgroundTransparency = 1,
 		}, button)
@@ -1430,12 +1488,12 @@ function Library:CreateWindow(props)
 			icon.Font = Enum.Font.GothamMedium
 			icon.Text = iconValue and tostring(iconValue) or "◇"
 			icon.TextColor3 = theme.muted
-			icon.TextSize = 16
+			icon.TextSize = 14
 		end
 		local nameLabel = make("TextLabel", {
 			Name = "TabName",
-			Position = UDim2.fromOffset(36, 0),
-			Size = UDim2.new(1, -43, 1, 0),
+			Position = UDim2.fromOffset(34, 0),
+			Size = UDim2.new(1, -36, 1, 0),
 			BackgroundTransparency = 1,
 			Font = Enum.Font.Gotham,
 			Text = tabName,
@@ -1444,6 +1502,22 @@ function Library:CreateWindow(props)
 			TextXAlignment = Enum.TextXAlignment.Left,
 			TextTruncate = Enum.TextTruncate.AtEnd,
 		}, button)
+		local indicator = make("Frame", {
+			Name = "Indicator",
+			Position = UDim2.fromOffset(0, 7),
+			Size = UDim2.fromOffset(3, 14),
+			BackgroundColor3 = theme.accent,
+			BorderSizePixel = 0,
+			Visible = false,
+		}, button)
+		round(indicator, 2)
+		tab._indicator = indicator
+		connect(button.MouseEnter, function()
+			if activeTab ~= tab then tween(button, { BackgroundColor3 = theme.row }, 0.1) end
+		end)
+		connect(button.MouseLeave, function()
+			if activeTab ~= tab then tween(button, { BackgroundColor3 = theme.header }, 0.1) end
+		end)
 		connect(button.Activated, function() setActive(tab) end)
 		tab._button = button
 		tab._icon = icon
@@ -1495,13 +1569,20 @@ function Library:CreateWindow(props)
 			AnchorPoint = Vector2.new(1, 1),
 			Position = UDim2.new(1, -18, 1, -18 - (#notificationCards * 84)),
 			Size = UDim2.fromOffset(260, 76),
+			ClipsDescendants = true,
 			BackgroundColor3 = theme.panel,
 			BorderSizePixel = 0,
 			ZIndex = 100,
 		}, notificationGui)
 		table.insert(notificationCards, toast)
-		round(toast, 4)
+		round(toast, 6)
 		stroke(toast, theme.border)
+		make("Frame", {
+			Size = UDim2.new(0, 3, 1, 0),
+			BackgroundColor3 = theme.accent,
+			BorderSizePixel = 0,
+			ZIndex = 101,
+		}, toast)
 		make("TextLabel", {
 			Position = UDim2.fromOffset(12, 8),
 			Size = UDim2.new(1, -24, 0, 22),
