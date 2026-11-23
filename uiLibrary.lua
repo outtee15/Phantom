@@ -192,9 +192,10 @@ function Library:CreateWindow(props)
 		end
 		if kind ~= "UserInputType" and kind ~= "Side" then
 			local ok, key = pcall(function() return Enum.KeyCode[name] end)
-			-- Unknown is what every mouse click reports as its KeyCode, so binding
-			-- it would make any click toggle the window.
-			if ok and key and key ~= Enum.KeyCode.Unknown then return key end
+			-- Every mouse click, focus change etc. reports KeyCode value 0 (its Name
+			-- is "None"; "Unknown" is an alias of the same value). Binding that
+			-- would make any click toggle the window, so never accept it.
+			if ok and key and key.Value ~= 0 then return key end
 		end
 		return nil
 	end
@@ -241,7 +242,10 @@ function Library:CreateWindow(props)
 
 	-- Normal input events. Side buttons are handled by the poller further down.
 	local function matchesHideKey(input)
-		if type(hideKey) == "string" or hideKey == Enum.KeyCode.Unknown then
+		if type(hideKey) == "string" then
+			return false
+		end
+		if hideKey.EnumType == Enum.KeyCode and hideKey.Value == 0 then
 			return false
 		end
 		if hideKey.EnumType == Enum.UserInputType then
@@ -1316,9 +1320,10 @@ function Library:CreateWindow(props)
 				connect(UserInputService.InputBegan, function(input, processed)
 					if processed then return end
 					if capturing then
+					if input.KeyCode.Value == 0 then return end -- a click or other non-key input: keep waiting
 					if input.KeyCode ~= Enum.KeyCode.Escape then handle:Set(input.KeyCode) else display(handle.value) end
 					capturing = false
-				elseif input.KeyCode == handle.value and not handle._locked then
+				elseif input.KeyCode.Value ~= 0 and input.KeyCode == handle.value and not handle._locked then
 					invoke(handle._callback)
 				end
 				end)
@@ -1707,7 +1712,7 @@ function Library:CreateWindow(props)
 			return true
 		end
 		if typeof(nextKey) ~= "EnumItem" then return false end
-		local isKeyboardKey = nextKey.EnumType == Enum.KeyCode and nextKey ~= Enum.KeyCode.Unknown
+		local isKeyboardKey = nextKey.EnumType == Enum.KeyCode and nextKey.Value ~= 0
 		local isMiddleMouse = nextKey.EnumType == Enum.UserInputType and MIDDLE_MOUSE[nextKey.Name] ~= nil
 		if not (isKeyboardKey or isMiddleMouse) then return false end
 		hideKey = nextKey
@@ -1981,7 +1986,7 @@ function Library:CreateWindow(props)
 			if isExtraMouse then
 				window:SetHideKey(input.UserInputType)
 			else
-				if input.KeyCode.Name == "Unknown" then return end
+				if input.KeyCode.Value == 0 then return end -- a click or other non-key input: keep waiting
 				if input.KeyCode.Name ~= "Escape" then window:SetHideKey(input.KeyCode) end
 			end
 			waitingForHideKey = false
