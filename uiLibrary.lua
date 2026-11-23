@@ -1943,13 +1943,6 @@ function Library:CreateWindow(props)
 	connect(hideKeyButton.Activated, function()
 		waitingForHideKey = true
 		hideKeyButton.Text = "Press a key or mouse button..."
-		if not fileFunction("iskeypressed") then
-			window:Notify({
-				title = "Side mouse buttons",
-				content = "No iskeypressed here, so Mouse 4/5 can't be read. Remap the button to F13 in your mouse software and bind that key.",
-				duration = 6,
-			})
-		end
 	end)
 	connect(configSaveButton.Activated, function()
 		local saved = window:Save()
