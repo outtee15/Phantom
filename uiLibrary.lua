@@ -1833,14 +1833,25 @@ function Library:CreateWindow(props)
 		for key, item in pairs(value) do value[key] = deserialize(item) end
 		return value
 	end
+	-- Why the last Save() failed (nil when it worked), so callers can show the
+	-- real reason instead of guessing.
+	function window:GetLastError()
+		return self._lastSaveError
+	end
 	function window:Save()
-		if not config then return false end
 		saveQueued = false
+		local function fail(reason)
+			self._lastSaveError = reason
+			warn("[uiLibrary] Save failed: " .. tostring(reason))
+			return false
+		end
+		if not config then return fail("no configuration was given to CreateWindow") end
 		local writer = fileFunction("writefile")
-		if not writer then return false end
+		if not writer then return fail("this executor has no writefile") end
 		local folder = fileFunction("makefolder")
 		local isFolder = fileFunction("isfolder")
-		if configFolder and folder then
+		local function ensureFolder()
+			if not (configFolder and folder) then return end
 			local folderExists = false
 			if isFolder then
 				local folderOk, exists = pcall(isFolder, configFolder)
@@ -1850,10 +1861,20 @@ function Library:CreateWindow(props)
 				pcall(folder, configFolder)
 			end
 		end
+		ensureFolder()
 		local ok, encoded = pcall(function() return HttpService:JSONEncode(serialize(flags)) end)
-		if not ok then return false end
+		if not ok then return fail("couldn't encode the settings: " .. tostring(encoded)) end
 		local saved, result = pcall(writer, configFile, encoded)
-		return saved and result ~= false
+		if not saved then
+			-- writefile(path, contents) is what we call; if it throws the usual
+			-- cause is a folder that wasn't there yet, so make it and try once more.
+			if configFolder and folder then pcall(folder, configFolder) end
+			saved, result = pcall(writer, configFile, encoded)
+		end
+		if not saved then return fail("writefile(\"" .. tostring(configFile) .. "\") errored: " .. tostring(result)) end
+		if result == false then return fail("writefile(\"" .. tostring(configFile) .. "\") returned false") end
+		self._lastSaveError = nil
+		return true
 	end
 	function window:Load()
 		if not config or not configFile then return false end
