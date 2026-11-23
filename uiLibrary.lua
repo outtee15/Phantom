@@ -2,6 +2,7 @@ local Library = {}
 
 local TextService = game:GetService("TextService")
 local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local HttpService = game:GetService("HttpService")
 local Themes = {
@@ -157,29 +158,43 @@ function Library:CreateWindow(props)
 		error("[uiLibrary] Executor runtime required.", 2)
 	end
 
-	-- The hide key can be a keyboard key or one of the extra mouse buttons
-	-- (Mouse 4 / Mouse 5 are the side "back" and "forward" buttons).
-	local EXTRA_MOUSE_BUTTONS = {
-		MouseButton3 = "Middle Mouse",
-		MouseButton4 = "Mouse 4 (Back)",
-		MouseButton5 = "Mouse 5 (Forward)",
+	-- The hide key can be:
+	--   * a keyboard key                      (Enum.KeyCode)
+	--   * the middle mouse button             (Enum.UserInputType.MouseButton3)
+	--   * a side mouse button, "MouseButton4" (back) / "MouseButton5" (forward),
+	--     stored as a plain string.
+	-- Roblox itself has no input type for the side buttons, so they are polled
+	-- through the executor's iskeypressed() using the Windows virtual-key codes.
+	local MIDDLE_MOUSE = { MouseButton3 = "Middle Mouse" }
+	local SIDE_BUTTONS = {
+		MouseButton4 = { label = "Mouse 4 (Back)", vk = 0x05 },
+		MouseButton5 = { label = "Mouse 5 (Forward)", vk = 0x06 },
 	}
 
 	local function hideKeyLabel(key)
+		if type(key) == "string" then
+			return SIDE_BUTTONS[key] and SIDE_BUTTONS[key].label or key
+		end
 		if key.EnumType == Enum.UserInputType then
-			return EXTRA_MOUSE_BUTTONS[key.Name] or key.Name
+			return MIDDLE_MOUSE[key.Name] or key.Name
 		end
 		return key.Name
 	end
 
-	-- name: "RightControl" or "MouseButton4"; kind: "KeyCode" or "UserInputType"
+	-- name: "RightControl", "MouseButton3", "MouseButton4"...
+	-- kind: "KeyCode" | "UserInputType" | "Side" (nil = work it out from the name)
 	local function resolveHideKey(name, kind)
-		if kind ~= "KeyCode" and EXTRA_MOUSE_BUTTONS[name] then
+		if SIDE_BUTTONS[name] and kind ~= "KeyCode" then
+			return name
+		end
+		if MIDDLE_MOUSE[name] and kind ~= "KeyCode" then
 			return Enum.UserInputType[name]
 		end
-		if kind ~= "UserInputType" then
+		if kind ~= "UserInputType" and kind ~= "Side" then
 			local ok, key = pcall(function() return Enum.KeyCode[name] end)
-			if ok and key then return key end
+			-- Unknown is what every mouse click reports as its KeyCode, so binding
+			-- it would make any click toggle the window.
+			if ok and key and key ~= Enum.KeyCode.Unknown then return key end
 		end
 		return nil
 	end
@@ -205,9 +220,15 @@ function Library:CreateWindow(props)
 		local writer = fileFunction("writefile")
 		if not writer then return false end
 		local ok, encoded = pcall(function()
+			local keyType = "KeyCode"
+			if type(key) == "string" then
+				keyType = "Side"
+			elseif key.EnumType == Enum.UserInputType then
+				keyType = "UserInputType"
+			end
 			return HttpService:JSONEncode({
-				hideKey = key.Name,
-				hideKeyType = key.EnumType == Enum.UserInputType and "UserInputType" or "KeyCode",
+				hideKey = type(key) == "string" and key or key.Name,
+				hideKeyType = keyType,
 			})
 		end)
 		if not ok then return false end
@@ -218,7 +239,11 @@ function Library:CreateWindow(props)
 	local hideKey = loadHideKey()
 	saveHideKey(hideKey)
 
+	-- Normal input events. Side buttons are handled by the poller further down.
 	local function matchesHideKey(input)
+		if type(hideKey) == "string" or hideKey == Enum.KeyCode.Unknown then
+			return false
+		end
 		if hideKey.EnumType == Enum.UserInputType then
 			return input.UserInputType == hideKey
 		end
@@ -1674,10 +1699,17 @@ function Library:CreateWindow(props)
 			nextKey = resolveHideKey(nextKey)
 			if not nextKey then return false end
 		end
+		if type(nextKey) == "string" then
+			-- a side mouse button
+			hideKey = nextKey
+			hideKeyButton.Text = hideKeyLabel(hideKey)
+			saveHideKey(hideKey)
+			return true
+		end
 		if typeof(nextKey) ~= "EnumItem" then return false end
-		local isKeyboardKey = nextKey.EnumType == Enum.KeyCode
-		local isExtraMouse = nextKey.EnumType == Enum.UserInputType and EXTRA_MOUSE_BUTTONS[nextKey.Name] ~= nil
-		if not (isKeyboardKey or isExtraMouse) then return false end
+		local isKeyboardKey = nextKey.EnumType == Enum.KeyCode and nextKey ~= Enum.KeyCode.Unknown
+		local isMiddleMouse = nextKey.EnumType == Enum.UserInputType and MIDDLE_MOUSE[nextKey.Name] ~= nil
+		if not (isKeyboardKey or isMiddleMouse) then return false end
 		hideKey = nextKey
 		hideKeyButton.Text = hideKeyLabel(hideKey)
 		saveHideKey(hideKey)
@@ -1906,6 +1938,13 @@ function Library:CreateWindow(props)
 	connect(hideKeyButton.Activated, function()
 		waitingForHideKey = true
 		hideKeyButton.Text = "Press a key or mouse button..."
+		if not fileFunction("iskeypressed") then
+			window:Notify({
+				title = "Side mouse buttons",
+				content = "This executor has no iskeypressed, so Mouse 4/5 can't be detected. Keys and middle mouse still work.",
+				duration = 6,
+			})
+		end
 	end)
 	connect(configSaveButton.Activated, function()
 		local saved = window:Save()
@@ -1934,9 +1973,9 @@ function Library:CreateWindow(props)
 	end)
 	connect(UserInputService.InputBegan, function(input, processed)
 		if UserInputService:GetFocusedTextBox() then return end
-		-- Side/middle mouse buttons are never typed into anything, so don't let
-		-- a GUI under the cursor swallow them.
-		local isExtraMouse = EXTRA_MOUSE_BUTTONS[input.UserInputType.Name] ~= nil
+		-- The middle mouse button is never typed into anything, so don't let a GUI
+		-- under the cursor swallow it.
+		local isExtraMouse = MIDDLE_MOUSE[input.UserInputType.Name] ~= nil
 		if processed and not isExtraMouse then return end
 		if waitingForHideKey then
 			if isExtraMouse then
@@ -1950,6 +1989,39 @@ function Library:CreateWindow(props)
 			return
 		end
 		if matchesHideKey(input) then window:ToggleHide() end
+	end)
+
+	-- Side mouse buttons: poll the OS button state once per frame, but only while
+	-- one is bound or we are waiting for the user to pick one.
+	local sideWasDown = {}
+	local function robloxWindowActive()
+		local fn = fileFunction("isrbxactive") or fileFunction("iswindowactive")
+		if not fn then return true end
+		local ok, active = pcall(fn)
+		return not ok or active ~= false
+	end
+	connect(RunService.Heartbeat, function()
+		local watching = waitingForHideKey or type(hideKey) == "string"
+		local pressedFn = fileFunction("iskeypressed")
+		if not watching or not pressedFn or not robloxWindowActive() then
+			table.clear(sideWasDown)
+			return
+		end
+		for name, info in pairs(SIDE_BUTTONS) do
+			local ok, down = pcall(pressedFn, info.vk)
+			down = ok and down == true
+			local justPressed = down and not sideWasDown[name]
+			sideWasDown[name] = down
+			if justPressed and not UserInputService:GetFocusedTextBox() then
+				if waitingForHideKey then
+					window:SetHideKey(name)
+					waitingForHideKey = false
+					hideKeyButton.Text = hideKeyLabel(hideKey)
+				elseif hideKey == name then
+					window:ToggleHide()
+				end
+			end
+		end
 	end)
 	connect(search:GetPropertyChangedSignal("Text"), function()
 		local query = search.Text:lower()
