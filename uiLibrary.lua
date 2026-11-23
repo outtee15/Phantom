@@ -157,6 +157,33 @@ function Library:CreateWindow(props)
 		error("[uiLibrary] Executor runtime required.", 2)
 	end
 
+	-- The hide key can be a keyboard key or one of the extra mouse buttons
+	-- (Mouse 4 / Mouse 5 are the side "back" and "forward" buttons).
+	local EXTRA_MOUSE_BUTTONS = {
+		MouseButton3 = "Middle Mouse",
+		MouseButton4 = "Mouse 4 (Back)",
+		MouseButton5 = "Mouse 5 (Forward)",
+	}
+
+	local function hideKeyLabel(key)
+		if key.EnumType == Enum.UserInputType then
+			return EXTRA_MOUSE_BUTTONS[key.Name] or key.Name
+		end
+		return key.Name
+	end
+
+	-- name: "RightControl" or "MouseButton4"; kind: "KeyCode" or "UserInputType"
+	local function resolveHideKey(name, kind)
+		if kind ~= "KeyCode" and EXTRA_MOUSE_BUTTONS[name] then
+			return Enum.UserInputType[name]
+		end
+		if kind ~= "UserInputType" then
+			local ok, key = pcall(function() return Enum.KeyCode[name] end)
+			if ok and key then return key end
+		end
+		return nil
+	end
+
 	local function loadHideKey()
 		local reader = fileFunction("readfile")
 		local exists = fileFunction("isfile")
@@ -167,8 +194,9 @@ function Library:CreateWindow(props)
 		end
 		local ok, settings = pcall(function() return HttpService:JSONDecode(reader(settingsFile)) end)
 		if ok and type(settings) == "table" and type(settings.hideKey) == "string" then
-			local keyOk, key = pcall(function() return Enum.KeyCode[settings.hideKey] end)
-			if keyOk and key then return key end
+			-- Older settings files have no hideKeyType and always mean a KeyCode.
+			local key = resolveHideKey(settings.hideKey, settings.hideKeyType or "KeyCode")
+			if key then return key end
 		end
 		return Enum.KeyCode.RightControl
 	end
@@ -177,7 +205,10 @@ function Library:CreateWindow(props)
 		local writer = fileFunction("writefile")
 		if not writer then return false end
 		local ok, encoded = pcall(function()
-			return HttpService:JSONEncode({ hideKey = key.Name })
+			return HttpService:JSONEncode({
+				hideKey = key.Name,
+				hideKeyType = key.EnumType == Enum.UserInputType and "UserInputType" or "KeyCode",
+			})
 		end)
 		if not ok then return false end
 		local saved = pcall(writer, settingsFile, encoded)
@@ -186,6 +217,13 @@ function Library:CreateWindow(props)
 
 	local hideKey = loadHideKey()
 	saveHideKey(hideKey)
+
+	local function matchesHideKey(input)
+		if hideKey.EnumType == Enum.UserInputType then
+			return input.UserInputType == hideKey
+		end
+		return input.KeyCode == hideKey
+	end
 	local waitingForHideKey = false
 	local settingsPopup
 	local hideKeyButton
@@ -404,7 +442,7 @@ function Library:CreateWindow(props)
 		BackgroundColor3 = theme.row,
 		BorderSizePixel = 0,
 		Font = Enum.Font.Gotham,
-		Text = hideKey.Name,
+		Text = hideKeyLabel(hideKey),
 		TextColor3 = theme.text,
 		TextSize = 11,
 		ZIndex = 71,
@@ -1633,13 +1671,15 @@ function Library:CreateWindow(props)
 	function window:SetHideKey(key)
 		local nextKey = key
 		if type(nextKey) == "string" then
-			local ok, resolved = pcall(function() return Enum.KeyCode[nextKey] end)
-			if not ok then return false end
-			nextKey = resolved
+			nextKey = resolveHideKey(nextKey)
+			if not nextKey then return false end
 		end
-		if typeof(nextKey) ~= "EnumItem" or nextKey.EnumType ~= Enum.KeyCode then return false end
+		if typeof(nextKey) ~= "EnumItem" then return false end
+		local isKeyboardKey = nextKey.EnumType == Enum.KeyCode
+		local isExtraMouse = nextKey.EnumType == Enum.UserInputType and EXTRA_MOUSE_BUTTONS[nextKey.Name] ~= nil
+		if not (isKeyboardKey or isExtraMouse) then return false end
 		hideKey = nextKey
-		hideKeyButton.Text = hideKey.Name
+		hideKeyButton.Text = hideKeyLabel(hideKey)
 		saveHideKey(hideKey)
 		return true
 	end
@@ -1865,7 +1905,7 @@ function Library:CreateWindow(props)
 	end)
 	connect(hideKeyButton.Activated, function()
 		waitingForHideKey = true
-		hideKeyButton.Text = "Press a key..."
+		hideKeyButton.Text = "Press a key or mouse button..."
 	end)
 	connect(configSaveButton.Activated, function()
 		local saved = window:Save()
@@ -1888,25 +1928,28 @@ function Library:CreateWindow(props)
 		window:Hide()
 		window:Notify({
 			title = "Phantom UI",
-			content = "UI hidden. Press " .. hideKey.Name .. " to unhide it.",
+			content = "UI hidden. Press " .. hideKeyLabel(hideKey) .. " to unhide it.",
 			duration = 5,
 		})
 	end)
 	connect(UserInputService.InputBegan, function(input, processed)
-		if processed or UserInputService:GetFocusedTextBox() then return end
+		if UserInputService:GetFocusedTextBox() then return end
+		-- Side/middle mouse buttons are never typed into anything, so don't let
+		-- a GUI under the cursor swallow them.
+		local isExtraMouse = EXTRA_MOUSE_BUTTONS[input.UserInputType.Name] ~= nil
+		if processed and not isExtraMouse then return end
 		if waitingForHideKey then
-			if input.KeyCode.Name == "Unknown" then return end
-			if input.KeyCode.Name == "Escape" then
-				waitingForHideKey = false
-				hideKeyButton.Text = hideKey.Name
-				return
+			if isExtraMouse then
+				window:SetHideKey(input.UserInputType)
+			else
+				if input.KeyCode.Name == "Unknown" then return end
+				if input.KeyCode.Name ~= "Escape" then window:SetHideKey(input.KeyCode) end
 			end
-			window:SetHideKey(input.KeyCode)
 			waitingForHideKey = false
-			hideKeyButton.Text = hideKey.Name
+			hideKeyButton.Text = hideKeyLabel(hideKey)
 			return
 		end
-		if input.KeyCode == hideKey then window:ToggleHide() end
+		if matchesHideKey(input) then window:ToggleHide() end
 	end)
 	connect(search:GetPropertyChangedSignal("Text"), function()
 		local query = search.Text:lower()
