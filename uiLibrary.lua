@@ -1814,7 +1814,10 @@ function Library:CreateWindow(props)
 		if valueType == "Color3" then
 			return { __uiLibraryType = "Color3", r = value.R, g = value.G, b = value.B }
 		elseif valueType == "EnumItem" then
-			return { __uiLibraryType = value.EnumType.Name, name = value.Name }
+			-- An Enum object has no Name property, so take it from tostring():
+			-- tostring(Enum.KeyCode) == "Enum.KeyCode" -> "KeyCode".
+			local enumName = string.gsub(tostring(value.EnumType), "^Enum%.", "")
+			return { __uiLibraryType = enumName, name = value.Name }
 		elseif type(value) == "table" then
 			local result = {}
 			for key, item in pairs(value) do result[key] = serialize(item) end
