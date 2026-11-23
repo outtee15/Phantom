@@ -658,6 +658,19 @@ function Library:CreateWindow(props)
 		_theme = theme,
 	}
 
+	-- Autosave: a slider drag changes the value dozens of times a second, so
+	-- changes are coalesced into one write shortly after the last one.
+	local saveQueued = false
+	local function queueSave()
+		if saveQueued then return end
+		saveQueued = true
+		task.delay(0.5, function()
+			if not saveQueued then return end -- already flushed (unload / manual save)
+			saveQueued = false
+			if not unloaded then window:Save() end
+		end)
+	end
+
 	local function updateLayout()
 		if unloaded then
 			return
@@ -887,7 +900,7 @@ function Library:CreateWindow(props)
 				invoke(self._callback, nextValue)
 			end
 			if not silent and config and read(config, "autoSave", false) and not loadingConfig then
-				window:Save()
+				queueSave()
 			end
 		end
 		function handle:Get()
@@ -1769,6 +1782,11 @@ function Library:CreateWindow(props)
 		configFolder = read(config, "customFolder", nil)
 		configFile = (configFolder and (tostring(configFolder) .. "/") or "") .. fileName .. ".json"
 	end
+	-- True while a saved configuration is being applied, so scripts can keep their
+	-- callbacks quiet (no toast for every toggle that gets restored).
+	function window:IsLoading()
+		return loadingConfig
+	end
 	function window:GetPath()
 		return configFolder or "", configFile or ""
 	end
@@ -1798,6 +1816,7 @@ function Library:CreateWindow(props)
 	end
 	function window:Save()
 		if not config then return false end
+		saveQueued = false
 		local writer = fileFunction("writefile")
 		if not writer then return false end
 		local folder = fileFunction("makefolder")
@@ -1853,6 +1872,7 @@ function Library:CreateWindow(props)
 
 	function window:Unload()
 		if unloaded then return end
+		if saveQueued then self:Save() end -- don't lose the last change
 		unloaded = true
 		self.unloaded = true
 		invoke(closeCallback, self)
